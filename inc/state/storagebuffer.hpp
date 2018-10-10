@@ -1,5 +1,8 @@
 #pragma once
 
+#include <thread>
+#include <shared_mutex>
+
 namespace vuda
 {
 

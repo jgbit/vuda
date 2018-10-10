@@ -1,28 +1,22 @@
 #pragma
 
-#include <Windows.h>
+#include <chrono>
 
 class Timer
 {
 public:
-	Timer()
-	{
-		QueryPerformanceFrequency(reinterpret_cast<LARGE_INTEGER*>(&m_freq));		
-	}
-
+	using time_point = std::chrono::high_resolution_clock::time_point;
 	inline void tic(void)
 	{
-		QueryPerformanceCounter(reinterpret_cast<LARGE_INTEGER*>(&ts));
+		ts = std::chrono::high_resolution_clock::now();
 	}
 
-	inline double toc(void)
+	inline double toc(void) const
 	{
-		QueryPerformanceCounter(reinterpret_cast<LARGE_INTEGER*>(&te));		
-		return (te - ts) / (double)m_freq;
+		auto te = std::chrono::high_resolution_clock::now();
+		return std::chrono::duration_cast<std::chrono::duration<double>>(te - ts).count();
 	}	
 
 private:
-		
-	__int64 m_freq;
-	__int64 ts, te;
+	time_point ts;
 };
