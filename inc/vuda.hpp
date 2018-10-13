@@ -9,10 +9,10 @@
 #include <fstream>
 #include <mutex>
 #include <shared_mutex>
-#include <deque>
+#include <atomic>
 #include <unordered_map>
 #include <unordered_set>
-#include <atomic>
+#include <deque>
 #include <array>
 #include <tuple>
 
