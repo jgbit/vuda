@@ -1,7 +1,17 @@
+#ifndef _DEBUG 
+#define NDEBUG
+#endif
+#ifndef NDEBUG
+#define VUDA_STD_LAYER_ENABLED
+#define VUDA_DEBUG_ENABLED
+#endif
+
 #include <vuda.hpp>
 #include <iostream>
+
 int main(void)
 {
+    // assign a device to thread
     vuda::SetDevice(0);
     // allocate memory on the device
     const int N = 5000;
@@ -29,7 +39,10 @@ int main(void)
     // do something useful with the result in array c ...    
     for(int i = 0; i < N; ++i)
         if(a[i] + b[i] != c[i])
-            std::cout << "failed to add vectors." << std::endl;
+        {
+            std::cout << "wrong result at index " << i << std::endl;
+            break;
+        }
 
     // free memory on device
     vuda::free(dev_a);

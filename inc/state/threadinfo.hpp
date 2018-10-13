@@ -36,7 +36,16 @@ namespace vuda
         static thread_info GetThreadInfo(std::thread::id tid)
         {
             // Multiple threads/readers can read at the same time.
-            std::shared_lock<std::shared_mutex> lock(mtx());            
+            std::shared_lock<std::shared_mutex> lock(mtx());
+
+#ifdef VUDA_DEBUG_ENABLED
+            if(get().size() == 0)
+            {
+                std::stringstream ostr; ostr << "The thread " << tid << " has not been assigned a device!";
+                throw std::runtime_error(ostr.str());
+            }
+#endif
+
             return get().at(tid);
         }
 
