@@ -1,8 +1,5 @@
 #pragma once
 
-#include <thread>
-#include <shared_mutex>
-
 namespace vuda
 {
 
@@ -12,14 +9,14 @@ namespace vuda
 
         The Curiously Recurring Template Pattern (CRTP)
     */
-    
+
     class storage_buffer_node : public bst_node<storage_buffer_node, void*>
     {
     public:
-        storage_buffer_node(const vk::PhysicalDevice &physDevice, const vk::UniqueDevice& device, size_t size) :            
+        storage_buffer_node(const vk::PhysicalDevice &physDevice, const vk::UniqueDevice& device, size_t size) :
             m_size(size)
         {
-            init(physDevice, device);            
+            init(physDevice, device);
         }
 
         void print(int depth = 0) const
@@ -37,7 +34,7 @@ namespace vuda
             // copy node's satellite data
             m_bufferHost = node->m_bufferHost;
             m_bufferDevice = node->m_bufferDevice;
-            
+
             m_size = node->m_size;
             m_memoryHost = node->m_memoryHost;
             m_memoryDevice = node->m_memoryDevice;
@@ -74,13 +71,13 @@ namespace vuda
 
         /*void copyBufferToDevice(const vk::UniqueCommandBuffer& commandBuffer, const vk::DeviceSize size) const
         {
-            
+
         }*/
 
     private:
 
         void init(const vk::PhysicalDevice &physDevice, const vk::UniqueDevice& device)
-        {        
+        {
             //
             // staging buffer
             create(physDevice, device, m_size,
@@ -142,7 +139,7 @@ namespace vuda
 
         //
         // allocated memory for buffers
-        size_t m_size;        
+        size_t m_size;
         vk::DeviceMemory m_memoryHost;
         vk::DeviceMemory m_memoryDevice;
     };
