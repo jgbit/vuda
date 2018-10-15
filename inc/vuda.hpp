@@ -15,6 +15,7 @@
 #include <deque>
 #include <array>
 #include <tuple>
+#include <thread>
 
 #include "setup/debug.hpp"
 #include "setup/types.hpp"
