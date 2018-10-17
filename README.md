@@ -5,9 +5,9 @@ VUDA is a header-only lib based on Vulkan that provides a CUDA Runtime API inter
 # Compile flags
 
 | Flag | Comment |
-| ---- | ------- |
-| VUDA_STD_LAYER_ENABLED | Enables the std vulkan layer |
-| VUDA_DEBUG_ENABLED     | Enables run-time exceptions  |
+| :--- | :------ |
+| `VUDA_STD_LAYER_ENABLED` | Enables the std vulkan layer |
+| `VUDA_DEBUG_ENABLED`     | Enables run-time exceptions  |
 
 # Usage
 
@@ -52,5 +52,6 @@ int main(void)
 # Change Log
 
 | Date | Changes |
+| :--- | :------ |
 | 17/10/2018 | kernel interface updated: kernel specialization, arbitrary arguments |
 | 06/10/2018 | Initial version |
