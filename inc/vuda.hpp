@@ -7,11 +7,12 @@
 #include <iostream>
 #include <sstream>
 #include <fstream>
+#include <thread>
 #include <mutex>
 #include <shared_mutex>
 #include <atomic>
+#include <map>
 #include <unordered_map>
-#include <unordered_set>
 #include <deque>
 #include <array>
 #include <tuple>
@@ -29,7 +30,7 @@
 #include "state/logicaldevice.hpp"
 #include "state/interfacelogicaldevices.hpp"
 #include "state/threadinfo.hpp"
-#include "state/state.hpp"
+#include "state/kernellaunchinfo.hpp"
 
 #include "api/devicemgr.hpp"
 #include "api/memmgr.hpp"

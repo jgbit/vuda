@@ -94,7 +94,8 @@ namespace vuda
             //std::cout << ostr.str();            
         }
 
-        void UpdateDescriptorAndCommandBuffer(const vk::UniqueDevice& device, const kernelprogram& kernel, const std::vector<vk::DescriptorBufferInfo>& bufferDescriptors, const uint32_t stream)
+        template <size_t specializationByteSize, typename... specialTypes>
+        void UpdateDescriptorAndCommandBuffer(const vk::UniqueDevice& device, const kernelprogram<specializationByteSize>& kernel, specialization<specialTypes...>& specials, const std::vector<vk::DescriptorBufferInfo>& bufferDescriptors, const uint32_t blocks, const uint32_t stream)
         {
             //
             // lock access to the streams commandbuffer
@@ -106,7 +107,7 @@ namespace vuda
             
             //
             // record command buffer
-            bool ret = kernel.UpdateDescriptorAndCommandBuffer(device, m_commandBuffers[stream], bufferDescriptors);
+            bool ret = kernel.UpdateDescriptorAndCommandBuffer(device, m_commandBuffers[stream], bufferDescriptors, specials, blocks);
 
             /*//
             // if the recording failed, it is solely due to the limited amount of descriptor sets

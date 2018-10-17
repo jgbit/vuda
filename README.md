@@ -2,13 +2,14 @@
 
 VUDA is a header-only lib based on Vulkan that provides a CUDA Runtime API interface for writing GPU-accelerated applications.
 
-# Content
+# Compile flags
 
-* vuda/
-    * inc     : library files
-    * samples : usage examples
+| Flag | Comment |
+| ---- | ------- |
+| VUDA_STD_LAYER_ENABLED | Enables the std vulkan layer |
+| VUDA_DEBUG_ENABLED     | Enables run-time exceptions  |
 
-# Simple usage
+# Usage
 
 ```c++
 #include <vuda.hpp>
@@ -19,10 +20,10 @@ int main(void)
     // allocate memory on the device
     const int N = 5000;
     int a[N], b[N], c[N];
-    for(int i=0; i<N; ++i)
+    for(int i = 0; i < N; ++i)
     {
         a[i] = -i;
-        b[i] = i*i;
+        b[i] = i * i;
     }
     int *dev_a, *dev_b, *dev_c;
     vuda::malloc((void**)&dev_a, N * sizeof(int));
@@ -35,7 +36,7 @@ int main(void)
     const int stream_id = 0;
     const int blocks = 128;
     const int threads = 128;
-    vuda::kernelLaunch("add.spv", "main", blocks, threads, stream_id, dev_a, dev_b, dev_c, N);
+    vuda::kernelLaunch("add.spv", "main", blocks, stream_id, threads, dev_a, dev_b, dev_c, N);
     // copy result to host
     vuda::memcpy(c, dev_c, N * sizeof(int), vuda::memcpyDeviceToHost);
 
@@ -47,3 +48,9 @@ int main(void)
     vuda::free(dev_c);
 }
 ```
+
+# Change Log
+
+| Date | Changes |
+| 17/10/2018 | kernel interface updated: kernel specialization, arbitrary arguments |
+| 06/10/2018 | Initial version |

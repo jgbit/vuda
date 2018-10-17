@@ -39,7 +39,8 @@ namespace vuda
             std::shared_lock<std::shared_mutex> lock(mtx());
 
 #ifdef VUDA_DEBUG_ENABLED
-            if(get().size() == 0)
+            auto search = get().find(tid);
+            if(search == get().end())
             {
                 std::stringstream ostr; ostr << "The thread " << tid << " has not been assigned a device!";
                 throw std::runtime_error(ostr.str());

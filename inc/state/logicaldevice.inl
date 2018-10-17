@@ -40,23 +40,7 @@ namespace vuda
 
             m_queues[family] = queueIndexList;
         }
-
-        /*m_mtxCommandBuffers.resize(m_queueComputeCount);
-        for(unsigned int i = 0; i < m_queueComputeCount; ++i)
-            m_mtxCommandBuffers[i] = std::make_unique<std::mutex>();
-
-        //
-        // create fences
-
-        m_ufences.reserve(m_queueComputeCount);
-        for(unsigned int i = 0; i < m_queueComputeCount; ++i)
-            m_ufences.push_back(m_device->createFenceUnique(vk::FenceCreateFlags()));*/
     }
-
-    /*inline logical_device::~logical_device()
-    {
-
-    }*/
 
     inline void logical_device::malloc(void** devPtr, size_t size)
     {
@@ -155,36 +139,106 @@ namespace vuda
         return desc;
     }
 
-    inline uint64_t logical_device::CreateKernel(char const* filename, char const* entry, const std::vector<vk::DescriptorSetLayoutBinding>& bindings, const std::vector<specialization>& specials, int blocks, int threads)
+    //
+    // kernels associated with the logical device
+    //
+
+    template <typename... specialTypes>
+    inline void logical_device::SubmitKernel(   const std::thread::id tid, char const* filename, char const* entry,
+                                                const std::vector<vk::DescriptorSetLayoutBinding>& bindings,
+                                                specialization<specialTypes...>& specials,
+                                                const std::vector<vk::DescriptorBufferInfo>& bufferDescriptors,
+                                                const uint32_t blocks,
+                                                const uint32_t stream)
     {
         //
         // check if the kernel is already created and registered
-        // [ this should be optimized to be ~O(1) ]
+        // [ this should be optimized to be ~O(1) or compile-const ]
 
-        std::vector<kernelprogram>::iterator it;
+        std::vector<std::shared_ptr<kernel_interface>>::iterator it;
         {
             std::shared_lock<std::shared_mutex> lck(*m_mtxKernels);
 
-            it = std::find_if(m_kernels.begin(), m_kernels.end(), [&filename, &entry](kernelprogram& kernel) {
-                return (kernel.GetFileName() == filename && kernel.GetEntryName() == entry);
+            it = std::find_if(m_kernels.begin(), m_kernels.end(), [&filename, &entry](std::shared_ptr<kernel_interface>& kernel)
+            {
+                return (kernel->GetFileName() == filename && kernel->GetEntryName() == entry);
             });
+        }
 
-            if(it != m_kernels.end())
-                return std::distance(m_kernels.begin(), it);                
+        //
+        // if the kernel does not exist, it has to be created
+        // lock all access to kernels - all pointers to m_kernels become invalid
+        if(it == m_kernels.end())
+        {
+            std::unique_lock<std::shared_mutex> lck(*m_mtxKernels);
+
+            m_kernels.push_back(std::make_shared<kernelprogram<specials.bytesize>>(m_device, filename, entry, bindings, specials));
+            it = std::prev(m_kernels.end());
         }
         
         //
-        // if the kernel is not known it is created.
+        // update descriptor and command buffer
+
+        assert(stream >= 0 && stream < m_queueComputeCount);
+
+        //
+        // every thread can look up its command pool in the list
+        {
+            std::shared_lock<std::shared_mutex> lckCmdPools(*m_mtxCmdPools);
+            thrdcmdpool *pool = &m_thrdCommandPools.at(tid);
+
+            //
+            // every thread can read the kernels array
+            {
+                std::shared_lock<std::shared_mutex> lckKernels(*m_mtxKernels);
+        
+                //
+                // get specialized kernel
+                kernelprogram<specials.bytesize>* kernel = static_cast<kernelprogram<specials.bytesize>*>((*it).get());
+
+                pool->UpdateDescriptorAndCommandBuffer<specials.bytesize, specialTypes...>(m_device, *kernel, specials, bufferDescriptors, blocks, stream);
+            }
+        }
+    }
+
+    /*template <typename... specialTypes>
+    inline uint64_t logical_device::CreateKernel(char const* filename, char const* entry, const std::vector<vk::DescriptorSetLayoutBinding>& bindings, specialization<specialTypes...>& specials, int blocks)
+    {
+        //
+        // check if the kernel is already created and registered
+        // [ this should be optimized to be ~O(1) or compile-const ]
+                
+        const size_t specializationByteSize = specials.bytesize;
+
+        std::vector<std::shared_ptr<kernel_interface>>::iterator it;
+        {
+            std::shared_lock<std::shared_mutex> lck(*m_mtxKernels);
+
+            it = std::find_if(m_kernels.begin(), m_kernels.end(), [&filename, &entry](std::shared_ptr<kernel_interface>& kernel) 
+            {
+                return (kernel->GetFileName() == filename && kernel->GetEntryName() == entry);
+            });
+
+            //
+            // retrieve specialization of the kernel            
+            kernel->is_special_known(specials.data());
+
+            if(it != m_kernels.end())
+                return std::distance(m_kernels.begin(), it);
+        }
+        
+        //
+        // if the kernel does not exist, it is created
         // lock all access to kernels - all pointers to m_kernels become invalid
-        {            
+        {
             std::unique_lock<std::shared_mutex> lck(*m_mtxKernels);
 
-            m_kernels.push_back(kernelprogram(m_device, filename, entry, bindings, specials, blocks, threads));
-            it = std::prev(m_kernels.end());            
+            m_kernels.push_back(std::make_shared<kernelprogram<specializationByteSize>>(m_device, filename, entry, bindings, specials, blocks));
+            it = std::prev(m_kernels.end());
         }
 
         return std::distance(m_kernels.begin(), it);
-    }
+    }*/
 
     inline void logical_device::WaitOn(void)
     {
@@ -266,7 +320,7 @@ namespace vuda
         pool->memcpyDevice(m_device, dstbuf, srcbuf, count, stream);
     }
 
-    inline void logical_device::UpdateDescriptorAndCommandBuffer(const std::thread::id tid, const uint64_t kernelIndex, const std::vector<void*>& memaddr, const std::vector<vk::DescriptorBufferInfo>& bufferDescriptors, const uint32_t stream)
+    /*inline void logical_device::UpdateDescriptorAndCommandBuffer(const std::thread::id tid, const uint64_t kernelIndex, const std::vector<void*>& memaddr, const std::vector<vk::DescriptorBufferInfo>& bufferDescriptors, const uint32_t stream)
     {
         assert(stream >= 0 && stream < m_queueComputeCount);
 
@@ -278,12 +332,12 @@ namespace vuda
         //
         // every thread can read the kernels array        
         std::shared_lock<std::shared_mutex> lckKernels(*m_mtxKernels);
-        pool->UpdateDescriptorAndCommandBuffer(m_device, m_kernels[kernelIndex], bufferDescriptors, stream);
+        pool->UpdateDescriptorAndCommandBuffer(m_device, *m_kernels[kernelIndex], bufferDescriptors, stream);
 
         //
         // create (tid, stream) identifiers
         //std::unique_lock<std::shared_mutex> lck(*m_mtxResourceKernelAccess);        
-    }
+    }*/
 
     inline std::vector<uint32_t> logical_device::GetStreamIdentifiers(const void* src)
     {

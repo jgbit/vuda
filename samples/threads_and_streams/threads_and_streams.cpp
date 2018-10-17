@@ -61,8 +61,8 @@ int Test::SingleThreadSingleStreamExample(const int tid, const int nthreads, con
         vuda::memcpy(dev_b, b, N * sizeof(int), vuda::memcpyHostToDevice);
 
         //
-        // run kernel        
-        vuda::kernelLaunch("add.spv", "main", blocks, threads, stream_id, dev_a, dev_b, dev_c, N);
+        // run kernel                
+        vuda::kernelLaunch("add.spv", "main", blocks, stream_id, threads, dev_a, dev_b, dev_c, N);
 
         //
         // copy result to host
@@ -88,7 +88,7 @@ int Test::SingleThreadSingleStreamExample(const int tid, const int nthreads, con
     }
     catch(const std::exception& e)
     {
-        std::cerr << e.what() << std::endl;
+        std::cerr << "vuda::Error: " << e.what() << std::endl;
         return EXIT_FAILURE;
     }
     catch(...)
@@ -158,9 +158,9 @@ int Test::SingleThreadMultipleStreamsExample(const int tid, const int nthreads, 
             vuda::memcpy(dev_b1, b + i + N, N * sizeof(int), vuda::memcpyHostToDevice, stream1_id);
 
             //
-            // run kernel
-            vuda::kernelLaunch("add.spv", "main", blocks, threads, stream0_id, dev_a0, dev_b0, dev_c0, N);
-            vuda::kernelLaunch("add.spv", "main", blocks, threads, stream1_id, dev_a1, dev_b1, dev_c1, N);
+            // run kernel            
+            vuda::kernelLaunch("add.spv", "main", blocks, stream0_id, threads, dev_a0, dev_b0, dev_c0, N);
+            vuda::kernelLaunch("add.spv", "main", blocks, stream1_id, threads, dev_a1, dev_b1, dev_c1, N);
 
             //
             // copy result to host
@@ -246,7 +246,7 @@ int Test::MultipleThreadsMultipleStreamsExample(const int tid, const int nthread
         vuda::memcpy(dev_b, b + tid * N, N * sizeof(int), vuda::memcpyHostToDevice, stream_id);
 
         // run kernel
-        vuda::kernelLaunch("add.spv", "main", 128, 128, stream_id, dev_a, dev_b, dev_c, N);
+        vuda::kernelLaunch("add.spv", "main", blocks, stream_id, threads, dev_a, dev_b, dev_c, N);
 
         //
         // copy result to host

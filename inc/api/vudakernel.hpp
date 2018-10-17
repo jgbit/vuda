@@ -5,83 +5,56 @@ namespace vuda
 
     //
     // template kernel launch function
-    //
-    
+    //    
     /*
         the user applied parameters must match with the spv kernel.
 
-        NOTE: For now the function parameters are explicitly given        
-        until the vuda pipeline is better developed taking into account
-        the shader module layout
+        filename and entry are used as identifiers for the kernel / shader module (from file for now)
+        #blocks: it is required to specify the number of blocks to dispatch work
+        #stream: the stream parameter could be optional in the future, but we keep it explicit for now
+        #threads: note that the number of threads in the kernel can be passed as a scalar or multiple scalars
+        #Ns: note that dynamic allocation of shared memory will likely follow the same pattern
+        (i.e. they will be regarded as a shader specialization)
+
+        NOTE: For now all parameters passed to kernelLaunch follow the scheme
+        - all pointers are treated as being pointers returned by calling vuda::malloc
+        - all scalars are treated as shader specialization
+        - [ push constants could be another option under various conditions ]
+        - everything else is neglected
+
+        until the vuda pipeline is better developed taking into account the shader module layout
         - descriptor set layout
         - specialization constants
         - push constants
-
-        It would be ideal if the parameters could be adapted to variadic arguments
-    */    
-    //template <typename... Args>
-    inline void kernelLaunch(char const* filename, char const* entry, int blocks, int threads, int stream, // required parameters
-                               int* param0, int* param1, int* param2, int N)
+    */
+    template <typename... Ts>
+    inline void kernelLaunch(char const* filename, char const* entry, int blocks, int stream, Ts... args)
     {
+        //
+        // get thread id
         const std::thread::id tid = std::this_thread::get_id();
+
         //
         // get device assigned to thread
         const thread_info tinfo = interface_thread_info::GetThreadInfo(tid);
 
         //
-        // samplers
-        const int numResources = 3;
-        std::vector<vk::DescriptorSetLayoutBinding> bindings(numResources);        
-        uint32_t iter = 0;
-        for(auto& bind : bindings)
-        {
-            bind.binding = iter;
-            bind.descriptorType = vk::DescriptorType::eStorageBuffer;
-            bind.descriptorCount = 1;
-            bind.stageFlags = vk::ShaderStageFlagBits::eCompute;
-            bind.pImmutableSamplers = nullptr;
-            ++iter;
-        }
+        // book-keeping                
+        kernel_launch_info<Ts...> kl_info(tinfo.GetLogicalDevice(), args...);
 
-        //
-        // specialized constants
-        const uint32_t numSpecializedConstants = 1;
-        
-        std::vector<specialization> specials(numSpecializedConstants);
-        size_t totalSize = 0;
-        iter = 0;
-        for(auto& entry : specials)
-        {
-            entry.m_mapEntry.constantID = iter;
-            entry.m_mapEntry.offset = 0;
-            entry.m_mapEntry.size = sizeof(uint32_t);
-            entry.m_data = N;
-            ++iter;
-        }
-
-        //
-        // push constants (used for dynamic parameters)
-        // ...
-
-        //
-        // create or retrieve shader program from logical device        
-        const uint64_t kernel = tinfo.GetLogicalDevice()->CreateKernel(filename, entry, bindings, specials, blocks, threads);
-        
-        //
-        // retrieve and list the buffers
-        // [ create struct containing memadrr and buffer description ]        
-        std::vector<void*> memadrr = { param0, param1, param2 };
-        std::vector<vk::DescriptorBufferInfo> bufferdescs =
-        {
-            tinfo.GetLogicalDevice()->GetBufferDescriptor(param0),
-            tinfo.GetLogicalDevice()->GetBufferDescriptor(param1),
-            tinfo.GetLogicalDevice()->GetBufferDescriptor(param2)
-        };
-        
         //
         // add to the compute queue
-        const uint32_t stream_id = stream; // queueNum on the queueFamily
-        tinfo.GetLogicalDevice()->UpdateDescriptorAndCommandBuffer(tid, kernel, memadrr, bufferdescs, stream_id);        
+        const uint32_t stream_id = stream; // queue index on the queueFamily        
+        
+        //
+        // [ dummy copy for now ]
+        std::vector<vk::DescriptorSetLayoutBinding> bindings(kl_info.getBindings().size());
+        std::copy_n(kl_info.getBindings().begin(), kl_info.getBindings().size(), bindings.begin());
+        
+        std::vector<vk::DescriptorBufferInfo> bufferdescs(kl_info.getBufferDesc().size());
+        std::copy_n(kl_info.getBufferDesc().begin(), kl_info.getBufferDesc().size(), bufferdescs.begin());
+
+        tinfo.GetLogicalDevice()->SubmitKernel(tid, filename, entry, bindings, kl_info.getSpecials(), bufferdescs, blocks, stream_id);
     }
 
 } //namespace vuda

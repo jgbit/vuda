@@ -1,0 +1,25 @@
+#version 450 core
+
+//
+// workgroup size defined with specialization constants.
+layout( local_size_x_id = 0 ) in;
+/*layout( local_size_y_id = 1 ) in;
+layout( local_size_z_id = 2 ) in;*/
+
+//
+// size of vector defined by a specialization constant
+layout( constant_id = 1 ) const uint N = 100;
+
+//
+// resources
+//
+
+layout(set = 0, binding = 0) readonly buffer A { int a[]; };
+layout(set = 0, binding = 1) readonly buffer B { int b[]; };
+layout(set = 0, binding = 2) writeonly buffer C { int c[]; };
+
+void main(void)
+{    
+    uint tid = gl_GlobalInvocationID.x;
+    c[tid] = int(tid);
+}

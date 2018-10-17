@@ -22,7 +22,16 @@ namespace vuda
 
         //
         // kernel creation
-        uint64_t CreateKernel(char const* filename, char const* entry, const std::vector<vk::DescriptorSetLayoutBinding>& bindings, const std::vector<specialization>& specials, int blocks, int threads);
+        template <typename... specialTypes>
+        inline void SubmitKernel(   const std::thread::id tid, char const* filename, char const* entry,
+                                    const std::vector<vk::DescriptorSetLayoutBinding>& bindings,
+                                    specialization<specialTypes...>& specials,
+                                    const std::vector<vk::DescriptorBufferInfo>& bufferDescriptors,
+                                    const uint32_t blocks,
+                                    const uint32_t stream);
+
+        /*template <typename... specialTypes>
+        uint64_t CreateKernel(char const* filename, char const* entry, const std::vector<vk::DescriptorSetLayoutBinding>& bindings, specialization<specialTypes...>& specials, int blocks);*/
         
         //
         // command pool functions        
@@ -32,7 +41,7 @@ namespace vuda
         void memcpyDeviceToDevice(const std::thread::id tid, void* dst, const void* src, const size_t count, const uint32_t stream);
         void memcpyToHost(const std::thread::id tid, const void* src, const size_t count, const uint32_t stream);
 
-        void UpdateDescriptorAndCommandBuffer(const std::thread::id tid, const uint64_t kernelIndex, const std::vector<void*>& memaddr, const std::vector<vk::DescriptorBufferInfo>& bufferDescriptors, const uint32_t stream);
+        //void UpdateDescriptorAndCommandBuffer(const std::thread::id tid, const uint64_t kernelIndex, const std::vector<void*>& memaddr, const std::vector<vk::DescriptorBufferInfo>& bufferDescriptors, const uint32_t stream);
         void FlushQueue(const std::thread::id tid, const uint32_t stream);
 
         //
@@ -44,6 +53,9 @@ namespace vuda
         std::vector<uint32_t> GetStreamIdentifiers(const void* src);
 
     private:
+
+        //
+        // device handles
         vk::PhysicalDevice m_physDevice;
         vk::UniqueDevice m_device;
 
@@ -65,24 +77,10 @@ namespace vuda
         std::vector<std::unique_ptr<std::mutex>> m_mtxQueues;        
         std::unordered_map<uint32_t, std::vector<vk::Queue>> m_queues;
 
-        /*//
-        // command pool
-        vk::UniqueCommandPool m_commandPool;
-
         //
-        // command buffers (each compute queue gets a default commandbuffer)
-        // [ should have their own class ]
-        std::vector<std::unique_ptr<std::mutex>> m_mtxCommandBuffers;
-        enum vudaCommandBufferState { cbReset = 0, cbRecording = 1, cbSubmitted = 2};
-        std::vector<vudaCommandBufferState> m_commandBufferState;
-        std::vector<vk::UniqueCommandBuffer> m_commandBuffers;        
-        std::vector<vk::UniqueFence> m_ufences;*/
-
-        //
-        // compute kernels
-        //std::unique_ptr<std::mutex> m_mtxKernels;
+        // compute kernels        
         std::unique_ptr<std::shared_mutex> m_mtxKernels;
-        std::vector<kernelprogram> m_kernels;
+        std::vector<std::shared_ptr<kernel_interface>> m_kernels;
 
         //
         // buffers
@@ -96,7 +94,7 @@ namespace vuda
 
         //
         // kernel to memory access
-        //std::unique_ptr<std::shared_mutex> m_mtxResourceKernelAccess;        
+        //std::unique_ptr<std::shared_mutex> m_mtxResourceKernelAccess;
     };
 
 } //namespace vuda

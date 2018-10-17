@@ -32,7 +32,7 @@ int main(void)
     const int stream_id = 0;
     const int blocks = 128;
     const int threads = 128;
-    vuda::kernelLaunch("add.spv", "main", blocks, threads, stream_id, dev_a, dev_b, dev_c, N);
+    vuda::kernelLaunch("add.spv", "main", blocks, stream_id, threads, dev_a, dev_b, dev_c, N);
     // copy result to host
     vuda::memcpy(c, dev_c, N * sizeof(int), vuda::memcpyDeviceToHost);
 
