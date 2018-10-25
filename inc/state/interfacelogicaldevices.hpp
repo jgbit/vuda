@@ -23,7 +23,13 @@ namespace vuda
 #else
                 vk::DeviceCreateInfo info(vk::DeviceCreateFlags(), 1, &deviceQueueCreateInfo);
 #endif
-                interface_logical_devices::get().insert({ device, logical_device(info, physDevice) });
+                //interface_logical_devices::get().insert({ device, logical_device(info, physDevice) });
+                
+                // c++11
+                interface_logical_devices::get().emplace(std::piecewise_construct, std::forward_as_tuple(device), std::forward_as_tuple(info, physDevice));
+
+                // c++17
+                //interface_logical_devices::get().try_emplace( device, info, physDevice );
             }
 
             return &get().at(device);

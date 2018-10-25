@@ -28,7 +28,7 @@ namespace vuda
         - push constants
     */
     template <typename... Ts>
-    inline void kernelLaunch(char const* filename, char const* entry, int blocks, int stream, Ts... args)
+    inline void launchKernel(char const* filename, char const* entry, int stream, int blocks, Ts... args)
     {
         //
         // get thread id

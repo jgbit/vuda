@@ -28,11 +28,9 @@ namespace vuda
         void set_parent(Derived* node) { m_p = node; }
         void set_left(Derived* node) { m_left = node; }
         void set_right(Derived* node) { m_right = node; }
-        virtual void set_key(const KeyType& key) { m_key = key; }
-        virtual void set_data(Derived* node)
-        {
-            int ulla = 1;
-        }
+        virtual void set_key(const KeyType& key, const size_t& range) { m_key = key; m_range = range; }
+        //virtual void set_range(const size_t& range) { m_range = range; }
+        virtual void set_data(Derived* node) = 0;
 
         //
         // gets
@@ -40,12 +38,14 @@ namespace vuda
         Derived* left(void) const { return m_left; }
         Derived* right(void) const { return m_right; }
         KeyType key(void) const { return m_key; }
+        size_t range(void) const { return m_range; }
 
-    protected:
+    private:
 
         //
         // key
         KeyType m_key;
+        size_t m_range;
 
     private:
 
@@ -62,7 +62,7 @@ namespace vuda
 
         bst_default_node()
         {
-            m_key = this;
+            set_key(this, 1);            
         }
 
         void print(int depth = 0) const
@@ -70,18 +70,38 @@ namespace vuda
             std::ostringstream ostr;
             for(int i = 0; i < depth; ++i)
                 ostr << "-";
-            ostr << m_key << " " << (uintptr_t)m_key << std::endl;
+            ostr << key() << " " << (uintptr_t)key() << std::endl;
             std::cout << ostr.str();
         }
 
         void set_data(bst_default_node* node)
         {
-            // copy node's satellite data
+            m_example = node->m_example;
         }
 
     private:
 
         // satellite data
+        float m_example;
+    };
+
+    class bst_derived_node : public bst_default_node
+    {
+    public:
+
+        void set_data(bst_default_node* node)
+        {
+            //
+            // invoke base
+            bst_default_node::set_data(node);
+
+            // copy node's satellite data                        
+            bst_derived_node* deriv = static_cast<bst_derived_node*>(node);
+            m_moredata = deriv->m_moredata;
+        }
+
+    private:
+        float m_moredata;
     };
 
     template<class NodeType, typename KeyType>
@@ -178,7 +198,7 @@ namespace vuda
 
             if(y != z)
             {
-                z->set_key(y->key());
+                z->set_key(y->key(), y->range());
                 z->set_data(y);
                 // copy y's satelite data into z
             }
@@ -239,7 +259,7 @@ namespace vuda
                 if(diffkey == 0)
                     return node;
 
-                if((std::size_t)abs(diffkey) < minkey)
+                if((size_t)abs(diffkey) < minkey)
                 {
                     mindiffkey = diffkey;
                     minkey = abs(diffkey);
@@ -255,17 +275,30 @@ namespace vuda
             if(mindiffkey < 0)
             {
                 //std::cout << "return successor: " << mindiffkey << std::endl;
-
                 node = predecessor(minnode);
 
                 if(node == nullptr) // this is left most node (minimum node)
-                    return minnode;
-                else
-                    return node;
+                    return nullptr;
+
+                //if(node != nullptr)
+                    //int break_point = 1;
             }
-            
-            //std::cout << "return minnode: " << mindiffkey << std::endl;
-            return minnode;
+            else
+            {
+                node = minnode;
+            }
+
+            //
+            // check if we are out of bound
+            diffkey = static_cast<const char*>(key) - static_cast<const char*>(node->key());
+            assert(diffkey >= 0);
+            if((size_t)abs(diffkey) < minnode->range())
+            {
+                //std::cout << "return minnode: " << mindiffkey << std::endl;
+                return node;
+            }
+            else
+                return nullptr;
         }
 
         // tree minimum

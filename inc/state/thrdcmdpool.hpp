@@ -34,7 +34,10 @@ namespace vuda
         thrdcmdpool(const vk::UniqueDevice& device, uint32_t queueFamilyIndex, uint32_t queueComputeCount) :
             m_commandPool(device->createCommandPoolUnique(vk::CommandPoolCreateInfo(vk::CommandPoolCreateFlags(vk::CommandPoolCreateFlagBits::eResetCommandBuffer), queueFamilyIndex))),
             m_commandBuffers(device->allocateCommandBuffersUnique(vk::CommandBufferAllocateInfo(m_commandPool.get(), vk::CommandBufferLevel::ePrimary, queueComputeCount))),
-            m_commandBufferState(queueComputeCount, cbReset)
+            m_commandBufferState(queueComputeCount, cbReset),
+
+            m_queryPool(device->createQueryPoolUnique(vk::QueryPoolCreateInfo(vk::QueryPoolCreateFlags(), vk::QueryType::eTimestamp, VUDA_MAX_QUERY_COUNT, vk::QueryPipelineStatisticFlags()))),
+            m_queryIndex(0)
         {
             //
             // create unique mutexes
@@ -57,7 +60,57 @@ namespace vuda
             public synchronized interface
         */
 
-        void memcpyDevice(const vk::UniqueDevice& device, const vk::Buffer& bufferDst, const vk::Buffer& bufferSrc, const vk::DeviceSize size, const uint32_t stream)
+        void SetEvent(const vk::UniqueDevice& device, const event_t event, const stream_t stream)
+        {
+            //
+            // lock access to the streams commandbuffer
+            std::lock_guard<std::mutex> lck(*m_mtxCommandBuffers[stream]);
+
+            //
+            //
+            CheckStateAndBeginCommandBuffer(device, stream);
+
+            //
+            //
+            m_commandBuffers[stream]->setEvent(event, vk::PipelineStageFlagBits::eBottomOfPipe);            
+        }
+
+        /*uint32_t GetQueryID(void) const
+        {
+            assert(m_queryIndex != VUDA_MAX_QUERY_COUNT);
+            return m_queryIndex++;            
+        }
+
+        void WriteTimeStamp(const vk::UniqueDevice& device, const event_t event, const stream_t stream) const
+        {
+            //
+            // lock access to the streams commandbuffer
+            std::lock_guard<std::mutex> lck(*m_mtxCommandBuffers[stream]);
+
+            //
+            // submit write time stamp command
+            CheckStateAndBeginCommandBuffer(device, stream);
+            
+            m_querytostream[event] = stream;
+            m_commandBuffers[stream]->writeTimestamp(vk::PipelineStageFlagBits::eBottomOfPipe, m_queryPool.get(), event);
+        }
+
+        uint64_t GetQueryPoolResults(const vk::UniqueDevice& device, const event_t event) const
+        {
+            // vkGetQueryPoolResults(sync)
+            // vkCmdCopyQueryPoolResults(async)
+            
+            uint64_t result[VUDA_MAX_QUERY_COUNT];
+            size_t size = VUDA_MAX_QUERY_COUNT * sizeof(uint64_t);
+
+            //
+            // vkGetQueryPoolResults will wait for the results to be available when VK_QUERY_RESULT_WAIT_BIT is specified
+            vk::Result res = device->getQueryPoolResults(m_queryPool.get(), 0, VUDA_MAX_QUERY_COUNT, size, &result[0], 0, vk::QueryResultFlagBits::e64 | vk::QueryResultFlagBits::eWait);
+
+            return result[1] - result[0];
+        }*/
+
+        void memcpyDevice(const vk::UniqueDevice& device, const vk::Buffer& bufferDst, const vk::Buffer& bufferSrc, const vk::DeviceSize size, const vk::Queue& queue, const uint32_t stream) const
         {
             //
             // lock access to the streams commandbuffer
@@ -85,6 +138,10 @@ namespace vuda
             //
             // the order of src and dst is interchanged compared to memcpy
             m_commandBuffers[stream]->copyBuffer(bufferSrc, bufferDst, copyRegion);
+
+            //
+            // execute the command buffer
+            ExecuteQueue(device, queue, stream);            
 
             //
             // insert pipeline barrier?            
@@ -136,7 +193,25 @@ namespace vuda
             }*/
         }
 
-        void ExecuteAndWait(const vk::UniqueDevice& device, const vk::Queue& queue, const uint32_t stream)
+        void Execute(const vk::UniqueDevice& device, const vk::Queue& queue, const uint32_t stream) const
+        {
+            //
+            // lock access to the streams commandbuffer
+            std::lock_guard<std::mutex> lck(*m_mtxCommandBuffers[stream]);
+
+            ExecuteQueue(device, queue, stream);
+        }
+
+        void Wait(const vk::UniqueDevice& device, const vk::Queue& queue, const uint32_t stream) const
+        {
+            //
+            // lock access to the streams commandbuffer
+            std::lock_guard<std::mutex> lck(*m_mtxCommandBuffers[stream]);
+                        
+            WaitAndReset(device, stream);
+        }
+
+        void ExecuteAndWait(const vk::UniqueDevice& device, const vk::Queue& queue, const uint32_t stream) const
         {
             //
             // lock access to the streams commandbuffer
@@ -153,12 +228,12 @@ namespace vuda
             -  assumes m_mtxCommandBuffers[stream] is locked
         */
 
-        void CheckStateAndBeginCommandBuffer(const vk::UniqueDevice& device, const uint32_t stream)
+        void CheckStateAndBeginCommandBuffer(const vk::UniqueDevice& device, const uint32_t stream) const
         {
             //
             // assumes m_mtxCommandBuffers[stream] is locked
             
-            commandBufferState state = m_commandBufferState[stream];
+            commandBufferStateFlags state = m_commandBufferState[stream];
 
             if(state == cbReset)
             {
@@ -178,7 +253,7 @@ namespace vuda
             }
         }
 
-        void BeginRecordingCommandBuffer(const uint32_t stream)
+        void BeginRecordingCommandBuffer(const uint32_t stream) const
         {
             //
             // assumes m_mtxCommandBuffers[stream] is locked
@@ -191,7 +266,7 @@ namespace vuda
             m_commandBufferState[stream] = cbRecording;
         }
 
-        void ExecuteQueue(const vk::UniqueDevice& device, const vk::Queue& queue, const uint32_t stream)
+        void ExecuteQueue(const vk::UniqueDevice& device, const vk::Queue& queue, const uint32_t stream) const
         {
             //
             // assumes m_mtxCommandBuffers[stream] is locked
@@ -214,20 +289,23 @@ namespace vuda
             }
         }
 
-        void WaitAndReset(const vk::UniqueDevice& device, const uint32_t stream)
+        void WaitAndReset(const vk::UniqueDevice& device, const uint32_t stream) const
         {
             //
             // assumes m_mtxCommandBuffers[stream] is locked
 
-            //
-            // for now just wait for the queue to become idle        
-            device->waitForFences(1, &m_ufences[stream].get(), VK_FALSE, std::numeric_limits<uint64_t>::max());
-            device->resetFences(1, &m_ufences[stream].get());
+            if(m_commandBufferState[stream] == cbSubmitted)
+            {
+                //
+                // for now just wait for the queue to become idle        
+                device->waitForFences(1, &m_ufences[stream].get(), VK_FALSE, std::numeric_limits<uint64_t>::max());
+                device->resetFences(1, &m_ufences[stream].get());
 
-            //
-            // reset command buffer
-            m_commandBuffers[stream]->reset(vk::CommandBufferResetFlags());
-            m_commandBufferState[stream] = cbReset;
+                //
+                // reset command buffer
+                m_commandBuffers[stream]->reset(vk::CommandBufferResetFlags());
+                m_commandBufferState[stream] = cbReset;
+            }
         }
 
         /*std::vector<uint32_t> GetStreamList(const void* src)
@@ -242,9 +320,17 @@ namespace vuda
 
         vk::UniqueCommandPool m_commandPool;
         std::vector<std::unique_ptr<std::mutex>> m_mtxCommandBuffers;
-        std::vector<commandBufferState> m_commandBufferState;
+        //mutable std::vector<std::mutex> m_mtxCommandBuffers;
+        mutable std::vector<commandBufferStateFlags> m_commandBufferState;
         std::vector<vk::UniqueCommandBuffer> m_commandBuffers;
         std::vector<vk::UniqueFence> m_ufences;
+
+        //
+        // time stamp queries
+        mutable std::atomic<uint32_t> m_queryIndex;
+        mutable std::array<uint32_t, VUDA_MAX_QUERY_COUNT> m_querytostream;
+        vk::UniqueQueryPool m_queryPool;
+        
 
         //
         // resource management

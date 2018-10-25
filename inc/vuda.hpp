@@ -16,16 +16,22 @@
 #include <deque>
 #include <array>
 #include <tuple>
+#include <chrono>
 
 #include "setup/debug.hpp"
 #include "setup/types.hpp"
 
+#include "state/event.hpp"
 #include "state/specialization.hpp"
 #include "state/instance.hpp"
 #include "state/vulkanfunc.hpp"
 #include "state/kernelprogram.hpp"
+#include "state/memoryallocator.hpp"
 #include "state/binarysearchtree.hpp"
 #include "state/storagebuffer.hpp"
+#include "state/devicebuffer.hpp"
+#include "state/hostbuffer.hpp"
+#include "state/cachedbuffer.hpp"
 #include "state/thrdcmdpool.hpp"
 #include "state/logicaldevice.hpp"
 #include "state/interfacelogicaldevices.hpp"

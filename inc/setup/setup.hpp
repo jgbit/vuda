@@ -8,3 +8,5 @@
 // Values
 
 #define VUDA_MAX_KERNEL_DESCRIPTOR_SETS 1024
+
+#define VUDA_MAX_QUERY_COUNT 32

@@ -194,7 +194,7 @@ namespace vuda
 
         //
         //
-        uint32_t m_maxDescriptorSet;        
+        uint32_t m_maxDescriptorSet;
         mutable std::atomic<uint32_t> m_descriptorSetIndex;
 
         //

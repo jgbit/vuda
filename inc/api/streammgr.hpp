@@ -3,8 +3,22 @@
 namespace vuda
 {
 
+    // Create an asynchronous stream.
     /*__host__*/
-    inline vudaError_t streamSynchronize(uint32_t stream)
+    inline error_t streamCreate(stream_t* pStream)
+    {
+
+    }
+
+    // Destroys and cleans up an asynchronous stream.
+    /*__host__ __device__*/
+    inline error_t streamDestroy(stream_t stream)
+    {
+
+    }        
+
+    /*__host__*/
+    inline error_t streamSynchronize(stream_t stream)
     {
         //            
         // execute and sync with queue/stream

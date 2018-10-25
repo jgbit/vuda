@@ -9,6 +9,7 @@
 
 #include <vuda.hpp>
 #include <cstdlib>
+#include <random>
 
 int preloadkernel(void)
 {
@@ -32,7 +33,7 @@ int blocks_and_threads(const std::thread::id tid)
         const int deviceID = 0;
         vuda::SetDevice(deviceID);
 
-        vuda::vudaDeviceProp prop;
+        vuda::deviceProp prop;
         vuda::GetDeviceProperties(&prop, deviceID);
                 
         const int maxblocks = 256;
@@ -41,18 +42,15 @@ int blocks_and_threads(const std::thread::id tid)
         int* c = new int [N];
 
         const int stream_id = 0;
-        int *dev_a = 0, *dev_b, *dev_c;
+        int *dev_c;
+
+        std::random_device rd;
+        std::mt19937 mt(rd());        
+        std::uniform_int_distribution<uint32_t> dist(1, 100);
 
         //
-        // allocate memory on the device        
-        vuda::malloc((void**)&dev_a, N * sizeof(int));
-        vuda::malloc((void**)&dev_b, N * sizeof(int));
+        // allocate memory on the device
         vuda::malloc((void**)&dev_c, N * sizeof(int));
-
-        //
-        // copy the arrays a and b to the device
-        //vuda::memcpy(dev_a, a, N * sizeof(int), vuda::memcpyHostToDevice);
-        //vuda::memcpy(dev_b, b, N * sizeof(int), vuda::memcpyHostToDevice);
 
         //
         // run kernel for different settings of the number of threads
@@ -66,10 +64,13 @@ int blocks_and_threads(const std::thread::id tid)
                 // reset all
                 memset(c, 0, N * sizeof(int));
 
+                // generate a random unsigned integer
+                uint32_t rndnum  = dist(mt);
+
                 //
                 // launch kernel with threads
-                vuda::kernelLaunch("threadid.spv", "main", blocks, stream_id, 
-                                   threads, 1, dev_a, dev_b, dev_c);
+                vuda::launchKernel("threadid.spv", "main", stream_id, blocks,
+                                   threads, rndnum, dev_c);
 
                 //
                 // copy result to host
@@ -81,7 +82,7 @@ int blocks_and_threads(const std::thread::id tid)
                 std::cout << "#blocks: " << blocks << " #threads: " << threads;
                 for(int i = 0; i < current_size; ++i)
                 {
-                    if(c[i] != i)
+                    if(c[i] != i * rndnum)
                     {
                         std::cout << ", wrong result at index " << i << std::endl;
                         check = false;
@@ -95,9 +96,7 @@ int blocks_and_threads(const std::thread::id tid)
         }
 
         //
-        // free memory on device        
-        vuda::free(dev_a);
-        vuda::free(dev_b);
+        // free memory
         vuda::free(dev_c);
         delete[] c;
     }
@@ -130,6 +129,6 @@ int main()
     // call kernel from different host threads with different number of kernel threads
     // ...
 
-    std::cout << "done" << std::endl;
-    std::cin.get();
+    /*std::cout << "done" << std::endl;
+    std::cin.get();*/
 }

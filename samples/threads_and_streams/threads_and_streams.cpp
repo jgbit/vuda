@@ -62,7 +62,7 @@ int Test::SingleThreadSingleStreamExample(const int tid, const int nthreads, con
 
         //
         // run kernel                
-        vuda::kernelLaunch("add.spv", "main", blocks, stream_id, threads, dev_a, dev_b, dev_c, N);
+        vuda::launchKernel("add.spv", "main", stream_id, blocks, threads, dev_a, dev_b, dev_c, N);
 
         //
         // copy result to host
@@ -132,8 +132,8 @@ int Test::SingleThreadMultipleStreamsExample(const int tid, const int nthreads, 
             return EXIT_FAILURE;
 
         const int N = FULL_DATA_SIZE / 2;
-        int *dev_a0 = 0, *dev_b0, *dev_c0;
-        int *dev_a1 = 0, *dev_b1, *dev_c1;
+        int *dev_a0, *dev_b0, *dev_c0;
+        int *dev_a1, *dev_b1, *dev_c1;
 
         //
         // allocate memory on the device        
@@ -159,8 +159,8 @@ int Test::SingleThreadMultipleStreamsExample(const int tid, const int nthreads, 
 
             //
             // run kernel            
-            vuda::kernelLaunch("add.spv", "main", blocks, stream0_id, threads, dev_a0, dev_b0, dev_c0, N);
-            vuda::kernelLaunch("add.spv", "main", blocks, stream1_id, threads, dev_a1, dev_b1, dev_c1, N);
+            vuda::launchKernel("add.spv", "main", stream0_id, blocks, threads, dev_a0, dev_b0, dev_c0, N);
+            vuda::launchKernel("add.spv", "main", stream1_id, blocks, threads, dev_a1, dev_b1, dev_c1, N);
 
             //
             // copy result to host
@@ -242,11 +242,16 @@ int Test::MultipleThreadsMultipleStreamsExample(const int tid, const int nthread
         vuda::malloc((void**)&dev_c, N * sizeof(int));
 
         // copy the arrays a and b to the device
-        vuda::memcpy(dev_a, a + tid * N, N * sizeof(int), vuda::memcpyHostToDevice, stream_id);
+        vuda::memcpy(dev_a, a + tid * N, N * sizeof(int), vuda::memcpyHostToDevice, stream_id);        
         vuda::memcpy(dev_b, b + tid * N, N * sizeof(int), vuda::memcpyHostToDevice, stream_id);
-
+        
+        //
         // run kernel
-        vuda::kernelLaunch("add.spv", "main", blocks, stream_id, threads, dev_a, dev_b, dev_c, N);
+        vuda::launchKernel("add.spv", "main", stream_id, blocks, threads, dev_a, dev_b, dev_c, N);
+
+        //
+        // [until we have async memcpy, we must sync the device between threads ]
+        //vuda::streamSynchronize(stream_id);
 
         //
         // copy result to host
@@ -313,7 +318,7 @@ void Test::Launch(std::string name, const int num_threads, const unsigned int N,
     for(unsigned int i = 0; i < N; ++i)
     {
         a[i] = dist(mt); // -i + tid;
-        b[i] = dist(mt); // i*i;        
+        b[i] = dist(mt); // i*i;
     }
     std::cout << "done." << std::endl << std::endl;
 
@@ -321,7 +326,7 @@ void Test::Launch(std::string name, const int num_threads, const unsigned int N,
     // threads    
     Timer timer;
     std::thread* t = new std::thread[num_threads];
-    const int totalRuns = 50;
+    const int totalRuns = 12;
     double totalElapsedTime;
 
     std::cout << name << std::endl;
@@ -333,7 +338,6 @@ void Test::Launch(std::string name, const int num_threads, const unsigned int N,
     vuda::GetDeviceCount(&deviceCount);
     for(int deviceID = 0; deviceID < deviceCount; ++deviceID)
         vuda::SetDevice(deviceID);
-
     vuda::SetDevice(0);
 
     totalElapsedTime = 0.0;
@@ -398,24 +402,27 @@ int main(int argc, char *argv[])
     "Single device, multiple threads, multiple streams"
     };
 
+    int testid;
     //
     // single device, single thread, single stream
-    int testid = 0;
+    testid = 0;
     if(test_runs[testid])
         Test::Launch(test_names[testid], 1, N, &Test::SingleThreadSingleStreamExample);
-
+    
     //
     // single device, single thread, multiple streams
-    testid = 1;
+    /*testid = 1;
     if(test_runs[testid])
         Test::Launch(test_names[testid], 1, N, &Test::SingleThreadMultipleStreamsExample);
-
+    
     //
     // single device, multiple threads, multiple streams
     testid = 2;
     if(test_runs[testid])
-        Test::Launch(test_names[testid], 2, N, &Test::MultipleThreadsMultipleStreamsExample);
-
-    system("pause");
+        Test::Launch(test_names[testid], 8, N, &Test::MultipleThreadsMultipleStreamsExample);*/
+    
+    
+    /*std::cout << "done" << std::endl;
+    std::cin.get();*/
     return EXIT_SUCCESS;
 }

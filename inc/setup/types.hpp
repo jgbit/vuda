@@ -5,17 +5,39 @@ namespace vuda
     //
     // vuda enums
 
-    enum commandBufferState { cbReset = 0, cbRecording = 1, cbSubmitted = 2 };
+    enum commandBufferStateFlags {
+        cbReset = 0,
+        cbRecording = 1,
+        cbSubmitted = 2
+    };
+
+    enum bufferUsageFlags { 
+        eDeviceUsage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        eHostUsage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        eCachedUsage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        eCachedInternalUsage = VK_BUFFER_USAGE_TRANSFER_DST_BIT
+    };
+
+    enum bufferPropertiesFlags {
+        eDeviceProperties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        eHostProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        eCachedProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
+        eCachedInternalProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT
+    };
 
     //
-    // CUDA equivalents    
+    // CUDA equivalents
 
-    enum enumvudaError { vudaSuccess = 0 };
-    typedef enumvudaError vudaError_t;
+    enum enumvudaError { vudaSuccess = 0, vudaErrorNotReady = 1 };
+    enum memcpyKind { memcpyHostToHost = 0, memcpyHostToDevice = 1, memcpyDeviceToHost = 2, memcpyDeviceToDevice = 3 /*, memcpyDefault = 4*/ };
+    enum enumHostAlloc { hostAllocDefault = 0, hostAllocPortable = 1, hostAllocMapped = 2, hostAllocWriteCombined = 3 };
 
-    enum vudaMemcpyKind { memcpyHostToHost = 0, memcpyHostToDevice = 1, memcpyDeviceToHost = 2, memcpyDeviceToDevice = 3 /*, memcpyDefault = 4*/ };
+    typedef enumvudaError error_t;
 
-    struct vudaDeviceProp
+    typedef vk::Event event_t;
+    typedef uint32_t stream_t;
+    
+    struct deviceProp
     {
         char name[256];
         size_t totalGlobalMem;

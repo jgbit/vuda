@@ -53,5 +53,6 @@ int main(void)
 
 | Date | Changes |
 | :--- | :------ |
+| 25/10/2018 | memory allocator introduced: mallocHost, hostAlloc, optimized memory transfers, (comparable speeds with cuda in simple vector addition) |
 | 17/10/2018 | kernel interface updated: kernel specialization, arbitrary arguments |
-| 06/10/2018 | Initial version |
+| 06/10/2018 | initial commit |
