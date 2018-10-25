@@ -1,15 +1,18 @@
-# VUDA
+## VUDA
 
-VUDA is a header-only lib based on Vulkan that provides a CUDA Runtime API interface for writing GPU-accelerated applications.
+VUDA is a header-only library based on Vulkan that provides a CUDA Runtime API interface for writing GPU-accelerated applications.
 
-# Compile flags
+## Setup
 
-| Flag | Comment |
-| :--- | :------ |
-| `VUDA_STD_LAYER_ENABLED` | Enables the std vulkan layer |
-| `VUDA_DEBUG_ENABLED`     | Enables run-time exceptions  |
+The only requirements for developing with the VUDA library is to have access to a vulkan compatible system and install the [Vulkan SDK](https://vulkan.lunarg.com/sdk/home).
+To compile a c++11 program using the VUDA library it is necessary to specify:
+* the include path to the Vulkan SDK header files
+* the include path to the Vulkan SDK library files
+* the additional dependency to the vulkan-1.lib
+* the include path to the VUDA header file
+It is recommended to compile towards x64.
 
-# Usage
+## Usage
 
 ```c++
 #include <vuda.hpp>
@@ -49,7 +52,14 @@ int main(void)
 }
 ```
 
-# Change Log
+## Compile flags
+
+| Flag | Comment |
+| :--- | :------ |
+| `VUDA_STD_LAYER_ENABLED` | Enables the std vulkan layer |
+| `VUDA_DEBUG_ENABLED`     | Enables run-time exceptions  |
+
+## Change Log
 
 | Date | Changes |
 | :--- | :------ |
