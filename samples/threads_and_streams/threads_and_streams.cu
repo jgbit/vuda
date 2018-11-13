@@ -48,8 +48,6 @@ int SingleThreadSingleStreamExample(const int tid, const int nthreads, const uns
 
     err = cudaMemcpy(c, d_C, size, cudaMemcpyDeviceToHost);
 
-    cudaDeviceSynchronize();
-
     // Free device global memory
     err = cudaFree(d_A);
     err = cudaFree(d_B);

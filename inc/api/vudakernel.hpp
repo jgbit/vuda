@@ -27,8 +27,15 @@ namespace vuda
         - specialization constants
         - push constants
     */
+
     template <typename... Ts>
     inline void launchKernel(char const* filename, char const* entry, int stream, int blocks, Ts... args)
+    {
+        launchKernel<Ts...>(filename, entry, stream, dim3(blocks), args...);
+    }
+
+    template <typename... Ts>
+    inline void launchKernel(char const* filename, char const* entry, int stream, dim3 blocks, Ts... args)
     {
         //
         // get thread id

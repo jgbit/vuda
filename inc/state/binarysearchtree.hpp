@@ -286,6 +286,8 @@ namespace vuda
             else
             {
                 node = minnode;
+
+                assert(node);
             }
 
             //

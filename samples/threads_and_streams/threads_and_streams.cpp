@@ -33,7 +33,7 @@ int Test::SingleThreadSingleStreamExample(const int tid, const int nthreads, con
         //
         // settings
         const int deviceID = 0;
-        vuda::SetDevice(deviceID);
+        vuda::setDevice(deviceID);
 
         const int stream_id = 0;
         const int blocks = 128;
@@ -110,7 +110,7 @@ int Test::SingleThreadMultipleStreamsExample(const int tid, const int nthreads, 
         //
         // hardcore device 0
         const int deviceID = 0;
-        vuda::SetDevice(deviceID);
+        vuda::setDevice(deviceID);
 
         //
         // kernel params
@@ -210,7 +210,7 @@ int Test::MultipleThreadsMultipleStreamsExample(const int tid, const int nthread
         //
         // hardcode device 0
         const int deviceID = 0;
-        vuda::SetDevice(deviceID);
+        vuda::setDevice(deviceID);
 
         //
         // kernel params        
@@ -335,10 +335,10 @@ void Test::Launch(std::string name, const int num_threads, const unsigned int N,
     // 
     // WARM UP AND POTENTIAL HACK TO AVOID RACE CONDITION IN ACCESSING PHYSICAL DEVICES
     int deviceCount;
-    vuda::GetDeviceCount(&deviceCount);
+    vuda::getDeviceCount(&deviceCount);
     for(int deviceID = 0; deviceID < deviceCount; ++deviceID)
-        vuda::SetDevice(deviceID);
-    vuda::SetDevice(0);
+        vuda::setDevice(deviceID);
+    vuda::setDevice(0);
 
     totalElapsedTime = 0.0;
     for(int run = 0; run < totalRuns; ++run)
@@ -411,7 +411,7 @@ int main(int argc, char *argv[])
     
     //
     // single device, single thread, multiple streams
-    /*testid = 1;
+    testid = 1;
     if(test_runs[testid])
         Test::Launch(test_names[testid], 1, N, &Test::SingleThreadMultipleStreamsExample);
     
@@ -419,7 +419,7 @@ int main(int argc, char *argv[])
     // single device, multiple threads, multiple streams
     testid = 2;
     if(test_runs[testid])
-        Test::Launch(test_names[testid], 8, N, &Test::MultipleThreadsMultipleStreamsExample);*/
+        Test::Launch(test_names[testid], 8, N, &Test::MultipleThreadsMultipleStreamsExample);
     
     
     /*std::cout << "done" << std::endl;

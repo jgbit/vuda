@@ -10,15 +10,22 @@ namespace vuda
     {
     public:
 
-        memory_block(const vk::DeviceSize offset, const vk::DeviceSize size, const vk::DeviceMemory& mem) : m_free(true), m_offset(offset), m_size(size), m_ptr(nullptr), m_memory(mem)
+        // allocate
+        memory_block(const vk::DeviceSize offset, const vk::DeviceSize size, const vk::Buffer& buffer) : m_offset(offset), m_size(size), m_ptr(nullptr), m_buffer(buffer)
         {
         }
 
         //
         //
-        void allocate(const vk::DeviceSize offset, const vk::DeviceSize size, void* ptr)
+
+        bool test_and_set(void)
         {
-            m_free = false;
+            return m_locked.test_and_set();
+        }
+
+        void reallocate(const vk::DeviceSize offset, const vk::DeviceSize size, void* ptr)
+        {
+            // before calling allocate test_and_set must have been called
             m_offset = offset;
             m_size = size;
             m_ptr = ptr;
@@ -26,17 +33,21 @@ namespace vuda
 
         void deallocate(void)
         {
+            /*std::ostringstream ostr;
+            ostr << std::this_thread::get_id() << ": value of lock is: " << m_locked.test_and_set() << std::endl;
+            std::cout << ostr.str();*/
+
             //
             // m_free is atomic so no need to guard            
-            m_free = true;
+            m_locked.clear();
         }
 
         //
-        //
+        // get
 
-        bool is_free(void) const
+        vk::Buffer get_buffer(void) const
         {
-            return m_free;
+            return m_buffer;
         }
 
         vk::DeviceSize get_offset(void) const
@@ -54,18 +65,15 @@ namespace vuda
             return m_ptr;
         }
 
-        vk::DeviceMemory get_memory(void) const
-        {
-            return m_memory;
-        }
-
     private:
-        std::atomic<bool> m_free;
+        //std::atomic<bool> m_free;
+        std::atomic_flag m_locked = ATOMIC_FLAG_INIT;
+
         vk::DeviceSize m_offset;
         vk::DeviceSize m_size;
         
         void* m_ptr;
-        vk::DeviceMemory m_memory;
+        const vk::Buffer m_buffer;
     };
 
     //
@@ -78,46 +86,62 @@ namespace vuda
             public synchronized interface
         */
 
-        memory_chunk(const vk::Device& device, const bool hostVisible, const uint32_t memoryTypeIndex, const vk::DeviceSize size) :            
-            m_size(size),
+        //const uint32_t memoryTypeIndex, const bool hostVisible,
+        memory_chunk(const vk::PhysicalDevice& physDevice, const vk::Device& device, const vk::MemoryPropertyFlags& memory_properties, const vk::DeviceSize size) :
+            //
+            // create buffer
+            m_buffer(device.createBufferUnique(vk::BufferCreateInfo(vk::BufferCreateFlags(), size, vk::BufferUsageFlags(bufferUsageFlags::eDefault), vk::SharingMode::eExclusive))),
+            m_memreq(device.getBufferMemoryRequirements(m_buffer.get())),
+
+            //
+            // memory information
+            m_hostVisible(memory_properties & vk::MemoryPropertyFlagBits::eHostVisible),
+            m_memoryTypeIndex(vudaFindMemoryType(physDevice, m_memreq.memoryTypeBits, memory_properties)),
 
             //
             // allocate chunck of memory            
-            m_memory(device.allocateMemoryUnique(vk::MemoryAllocateInfo(m_size, memoryTypeIndex))),
+            m_size(size),
+            m_memory(device.allocateMemoryUnique(vk::MemoryAllocateInfo(m_size, m_memoryTypeIndex))),
 
             //
-            // map memory            
-            m_ptr(hostVisible ? device.mapMemory(m_memory.get(), 0, VK_WHOLE_SIZE) : nullptr)
+            // map memory (if host visible)
+            m_memptr(m_hostVisible ? device.mapMemory(m_memory.get(), 0, VK_WHOLE_SIZE) : nullptr)
         {
+            //
+            // bind buffer to memory
+            device.bindBufferMemory(m_buffer.get(), m_memory.get(), 0),
+
             //
             //
             m_mtxBlocks = std::make_unique<std::mutex>();
 
             //
             // create initial block
-            m_blocks.emplace_back(std::make_unique<memory_block>(0, m_size, m_memory.get()));
+            m_blocks.emplace_back(std::make_unique<memory_block>(0, m_size, m_buffer.get()));
         }
 
         //
         // tries to find a free block within the chunk of memory with the required size
         // returns true if this succeeds
         // returns false if this fails
-        memory_block* allocate(const vk::DeviceSize size, const vk::DeviceSize alignment)
+        memory_block* allocate(const vk::DeviceSize size)
         {
             if(size > m_size)
                 return nullptr;
 
+            vk::DeviceSize alignment = m_memreq.alignment;
+
             //
             // find a free block that has sufficiently range
+
+            std::unique_lock<std::mutex> lck(*m_mtxBlocks);
 
             for(size_t i = 0; i < m_blocks.size(); ++i)
             {   
                 //
                 // first find, first serve
-                if(m_blocks[i]->is_free())
+                if(m_blocks[i]->test_and_set() == false)
                 {
-                    std::unique_lock<std::mutex> lck(*m_mtxBlocks);
-
                     //
                     // available size after alignment
                     vk::DeviceSize virtualSize = m_blocks[i]->get_size();
@@ -132,7 +156,7 @@ namespace vuda
 
                     // if the block can fit, (push mem pointer)
                     if(virtualSize >= size)
-                    {   
+                    {
                         vk::DeviceSize offset = (vk::DeviceSize)m_blocks[i]->get_offset() + incr_offset;
 
                         //
@@ -141,15 +165,16 @@ namespace vuda
                         {
                             //
                             // create new block
-                            m_blocks.emplace_back(std::make_unique<memory_block>(offset + size, virtualSize - size, m_memory.get()));                            
+                            m_blocks.emplace_back(std::make_unique<memory_block>(offset + size, virtualSize - size, m_buffer.get()));
                         }
 
                         // if host visible push the memory pointer
                         void* ptr = nullptr;
-                        if(m_ptr != nullptr)
-                             ptr = (char*)m_ptr + offset;
+                        if(m_memptr != nullptr)
+                             ptr = (char*)m_memptr + offset;
                         
-                        m_blocks[i]->allocate(offset, size, ptr);
+                        // can call realloc since test_and_set have been called beforehand
+                        m_blocks[i]->reallocate(offset, size, ptr);
                         return m_blocks[i].get();
                     }
                 }            
@@ -157,13 +182,33 @@ namespace vuda
             return nullptr;
         }
 
+        /*
+            only for debugging purposes
+        
+        size_t get_size(void) const
+        {
+            std::unique_lock<std::mutex> lck(*m_mtxBlocks);
+            return m_blocks.size();
+        }*/
+
     private:
 
         //
+        // buffer bounded to the chunk
+        vk::UniqueBuffer m_buffer;
+        const vk::MemoryRequirements m_memreq;
+        //vk::DeviceSize m_alignment;
+
+        //
+        // memory information
+        const bool m_hostVisible;
+        const uint32_t m_memoryTypeIndex;
+
+        //
         // memory
-        vk::DeviceSize m_size;        
-        vk::UniqueDeviceMemory m_memory;        
-        void *m_ptr;
+        const vk::DeviceSize m_size;
+        vk::UniqueDeviceMemory m_memory;
+        const void *m_memptr;
 
         //
         // blocks in the chunk
@@ -179,27 +224,110 @@ namespace vuda
             public synchronized interface
         */
 
-        memory_allocator(const vk::Device& device, const bool hostVisible, const uint32_t memoryTypeIndex, const vk::DeviceSize default_alloc_size = (vk::DeviceSize)1 << 20) :
-            m_device(device), 
-            m_hostVisible(hostVisible),
-            m_memoryTypeIndex(memoryTypeIndex),
-            m_defaultChunkSize(default_alloc_size)
+        //memory_allocator(const vk::PhysicalDevice& physDevice, const vk::Device& device, const bool hostVisible, const uint32_t memoryTypeIndex, const vk::DeviceSize default_alloc_size = (vk::DeviceSize)1 << 20) :
+        memory_allocator(const vk::PhysicalDevice& physDevice, const vk::Device& device, const vk::DeviceSize default_alloc_size = (vk::DeviceSize)1 << 20) :
+            m_physDevice(physDevice),
+            m_device(device),
+            m_defaultChunkSize(default_alloc_size),
+            //
+            // memory properties -> memory types
+            m_memoryAllocatorTypes{
+            {memoryPropertiesFlags::eDeviceProperties, findMemoryType_Device(physDevice, m_device)},
+            {memoryPropertiesFlags::eHostProperties, findMemoryType_Host(physDevice, m_device)},
+            {memoryPropertiesFlags::eCachedProperties, findMemoryType_Cached(physDevice, m_device)} },
+
+            //
+            // memory properties -> unique index
+            m_memoryIndexToPureIndex{
+            {memoryPropertiesFlags::eDeviceProperties, 0},
+            {memoryPropertiesFlags::eHostProperties, 1},
+            {memoryPropertiesFlags::eCachedProperties, 2} }
         {
             //
-            // set default chunk size
-            //set_default_alloc_size(default_alloc_size); // 1 mebibyte
+            // types of memory
+            std::vector<uint32_t> memoryIndices;
+            uint32_t numMemTypes = vudaGetNumberOfMemoryTypes(physDevice, memoryIndices);
 
-            //
-            // create initial chunck
-            //m_chunks.emplace_back(m_device, m_memoryTypeIndex, m_defaultChunkSize);
-        }        
+            for(size_t i = 0; i < m_memoryIndexToPureIndex.size(); ++i)
+            {
+                m_creation_locks.push_back(std::make_unique<std::atomic<bool>>());
+                m_creation_locks.back()->store(false);
+            }
 
-        memory_block* allocate(const vk::DeviceSize size, const vk::DeviceSize alignment)
+            m_type_chunks.resize(numMemTypes);
+            m_mtxTypeChunks.resize(numMemTypes);
+            for(size_t i = 0; i < numMemTypes; ++i)
+            {
+                m_mtxTypeChunks[i] = std::make_unique<std::shared_mutex>();                
+            }
+        }
+
+        memory_block* allocate(const vk::MemoryPropertyFlags& memory_properties, const vk::DeviceSize size)
         {
             memory_block* block;
 
             //
-            // find a suitable chunk that has a free chunk with suitable size             
+            // will throw exception if m_memoryAllocatorTypes does not know the set of memory properties
+            uint32_t pureIndex = m_memoryIndexToPureIndex.at(VkFlags(memory_properties));
+            
+            while(true)
+            {
+                //
+                // find a suitable chunk that has a free chunk with suitable size
+                {
+                    std::shared_lock<std::shared_mutex> lck(*m_mtxTypeChunks[pureIndex]);
+
+                    for(auto& chunk : m_type_chunks[pureIndex])
+                    {
+                        //
+                        // attempt to retrieve block from chunk
+                        block = chunk.allocate(size);
+                        if(block != nullptr)
+                            return block;
+                    }
+
+                    /*std::stringstream ostr;
+                    ostr << "requires a new chunk" << std::endl;
+                    std::cout << ostr.str();*/
+                }
+            
+                //
+                // create new memory chunk
+                if(m_creation_locks[pureIndex]->exchange(true) == false)
+                {
+                    std::unique_lock<std::shared_mutex> lck(*m_mtxTypeChunks[pureIndex]);
+
+                    vk::DeviceSize use_size = m_defaultChunkSize;
+                    if(size > m_defaultChunkSize)
+                    {
+                        // increase default allocation size
+                        use_size = size;
+                    }
+
+                    m_type_chunks[pureIndex].emplace_back(m_physDevice, m_device, memory_properties, use_size);
+
+                    /*std::stringstream ostr;
+                    ostr << "creating chunk" << std::endl;
+                    std::cout << ostr.str();*/
+
+                    m_creation_locks[pureIndex]->store(false);
+                }
+                else
+                {
+                    //
+                    // wait for creation proccess to complete and try again
+                    while(m_creation_locks[pureIndex]->load() == true)
+                        ;
+                }
+            }
+        }
+
+        /*memory_block* allocate(const vk::DeviceSize size, const vk::DeviceSize alignment)
+        {
+            memory_block* block;
+
+            //
+            // find a suitable chunk that has a free chunk with suitable size
             {
                 std::shared_lock<std::shared_mutex> lck(m_mtxChunks);
 
@@ -213,7 +341,7 @@ namespace vuda
                     if(block != nullptr)
                         return block;
                 }
-            }            
+            }
 
             //
             // create new memory chunk
@@ -241,7 +369,21 @@ namespace vuda
         uint32_t getMemoryTypeIndex(void) const
         {
             return m_memoryTypeIndex;
+        }*/
+
+        /*
+            only for debugging purposes
+        
+        size_t get_size(const unsigned int index) const
+        {
+            std::shared_lock<std::shared_mutex> lck(*m_mtxTypeChunks[index]);
+
+            if(m_type_chunks[index].size() > 0)
+                return m_type_chunks[index][0].get_size();
+            else
+                return 0;
         }
+        */
 
     private:
 
@@ -257,18 +399,9 @@ namespace vuda
     private:
 
         //
-        // keep memory allocator associated to one device
-        vk::Device m_device;
-
-        //
-        // [ associating each memory allocator with one specific memory type we can shorten the chunck search 
-        //   and make it more explicit what type of memory a buffer uses
-        //   however an additional allocator has to be created for each type of memory]
-        //
-        // memory information
-        const bool m_hostVisible;
-        uint32_t m_memoryTypeIndex;
-        
+        // keep memory allocator associated to one device        
+        const vk::PhysicalDevice m_physDevice;
+        const vk::Device m_device;
 
         //
         // memory allocation settings
@@ -276,8 +409,17 @@ namespace vuda
 
         //
         // chunks of memory        
-        std::shared_mutex m_mtxChunks;
-        std::vector<memory_chunk> m_chunks;
+        /*std::shared_mutex m_mtxChunks;
+        std::vector<memory_chunk> m_chunks;*/
+
+        //
+        //
+        std::vector< std::unique_ptr<std::atomic<bool>>> m_creation_locks;
+        std::vector<std::unique_ptr<std::shared_mutex>> m_mtxTypeChunks;
+        std::vector<std::vector<memory_chunk>> m_type_chunks;
+
+        std::unordered_map<VkFlags, uint32_t> m_memoryAllocatorTypes;
+        std::unordered_map<VkFlags, uint32_t> m_memoryIndexToPureIndex;
     };
 
 } // namespace vuda

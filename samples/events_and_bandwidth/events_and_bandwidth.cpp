@@ -56,7 +56,7 @@ double profileTransfer(float *dst, const float *src, unsigned int n, vuda::memcp
     return bw;
 }
 
-/*void profileCopies(float *h_a, float *h_b, float *d, unsigned int n, std::string desc)
+void profileCopies(float *h_a, float *h_b, float *d, unsigned int n, std::string desc)
 {
     Timer timer;
     std::cout << std::endl << desc << " transfers" << std::endl;
@@ -68,7 +68,7 @@ double profileTransfer(float *dst, const float *src, unsigned int n, vuda::memcp
     vuda::eventCreate(&startEvent);
     vuda::eventCreate(&stopEvent);
 
-    //
+    /*//
     //
     vuda::eventRecord(startEvent, 0);
     vuda::memcpy(d, h_a, bytes, vuda::memcpyHostToDevice, 0);        
@@ -96,12 +96,12 @@ double profileTransfer(float *dst, const float *src, unsigned int n, vuda::memcp
             std::cout << "*** " << desc << " transfers failed ***" << std::endl;
             break;
         }
-    }
+    }*/
 
     // clean up events
-    vuda::eventDestroy(startEvent));
-    vuda::eventDestroy(stopEvent));
-}*/
+    //vuda::eventDestroy(startEvent));
+    //vuda::eventDestroy(stopEvent));
+}
 
 void profileCopiesHost(float *h_a, float *h_b, float *d_a, float *d_b, unsigned int n, std::string desc)
 {
@@ -186,16 +186,19 @@ void print_bwresults(std::vector<std::string> memtype, std::vector<double> bwpro
     std::cout << ostr.str();
 }
 
-void go(void)
+void run(void)
 {
     int count = 0;
-    vuda::GetDeviceCount(&count);
+    vuda::getDeviceCount(&count);
     if(count == 0)
     {
         std::cout << "no devices found" << std::endl;
         return;
     }
-    vuda::SetDevice(0);
+    vuda::setDevice(0);
+
+    int deviceID = -1;
+    vuda::getDevice(&deviceID);
 
     //
     // problem size
@@ -209,11 +212,11 @@ void go(void)
     float *d_a, *d_b;
 
     //
-    // allocate
-    vuda::malloc((void**)&d_a, bytes);                                          // device
-    vuda::malloc((void**)&d_b, bytes);                                          // device
+    // allocate    
     h_aPageable = (float*)malloc(bytes);                                        // host pageable
     h_bPageable = (float*)malloc(bytes);                                        // host pageable
+    vuda::malloc((void**)&d_a, bytes);                                          // device
+    vuda::malloc((void**)&d_b, bytes);                                          // device
     vuda::mallocHost((void**)&h_aPinned, bytes);                                // host pinned
     vuda::mallocHost((void**)&h_bPinned, bytes);                                // host pinned
     vuda::hostAlloc((void**)&h_aCached, bytes, vuda::hostAllocWriteCombined);   // host cached
@@ -233,7 +236,7 @@ void go(void)
     //
     // output device info and transfer size
     vuda::deviceProp prop;
-    vuda::GetDeviceProperties(&prop, 0);
+    vuda::getDeviceProperties(&prop, 0);
     std::cout << std::endl << "Device: " << prop.name << std::endl;
     std::cout << "Transfer size (MB): " << bytes / (1024 * 1024) << std::endl;
 
@@ -309,8 +312,8 @@ void go(void)
         profileCopiesHost(h_aPinned, h_bPinned, d_a, d_b, nElements, "Host timing, Pinned");
     }
 
-    /*// timing using events
-    title("Classical bandwidth test (timing using events)");
+    // timing using events
+    /*title("Classical bandwidth test (timing using events)");
     {
         memset(h_bPageable, 0, bytes);
         profileCopies(h_aPageable, h_bPageable, d_a, nElements, "Event timing, Pageable");
@@ -322,10 +325,10 @@ void go(void)
 
     //
     // cleanup    
-    vuda::freeHost(h_aPinned);
-    vuda::freeHost(h_bPinned);
     free(h_aPageable);
     free(h_bPageable);
+    vuda::freeHost(h_aPinned);
+    vuda::freeHost(h_bPinned);    
     vuda::free(d_a);
     vuda::free(d_b);
     vuda::free(h_aCached);
@@ -336,7 +339,7 @@ int main()
 {
     try
     {
-        go();
+        run();
     }
     catch(vk::SystemError err)
     {

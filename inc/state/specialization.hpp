@@ -9,7 +9,7 @@ namespace vuda
     private:
 
         //
-        // recursive helpers
+        // recursive helpers c++17
 
         template <typename head, typename... tail>
         static constexpr size_t byte_size()
@@ -21,7 +21,7 @@ namespace vuda
             else
                 return sizeof(head);
         }
-
+        
         template <size_t begin, size_t end>
         static constexpr size_t offset()
         {
@@ -29,12 +29,12 @@ namespace vuda
                 return 0;
             else
                 return sizeof(type<begin>) + offset<begin + 1, end>();
-        }
+        }        
 
         template <size_t begin>
         void fill_entries(void)
         {
-            if constexpr(begin == count)
+            if constexpr(begin == m_count)
                 return;
             else
             {
@@ -49,6 +49,23 @@ namespace vuda
         }
 
         //
+        // recursive helpers c++11
+
+        /*
+        template <typename h1>
+        static constexpr size_t byte_size()
+        {
+            static_assert(std::is_arithmetic<h1>::value, "vuda::specialization: entries must be of arithmetic type");
+            return sizeof(h1);
+        }
+        template <typename h1, typename h2, typename... tail>
+        static constexpr size_t byte_size()
+        {
+            static_assert(std::is_arithmetic<h1>::value, "vuda::specialization: entries must be of arithmetic type");
+            return sizeof(h1) + byte_size<h2, tail...>();
+        }*/
+
+        //
         // individual helpers
 
         template <size_t index>
@@ -61,9 +78,9 @@ namespace vuda
         {
             m_info = vk::SpecializationInfo
             {
-                static_cast<uint32_t>(count),            
+                static_cast<uint32_t>(m_count),            
                 m_entries.data(),
-                static_cast<vk::DeviceSize>(bytesize),
+                static_cast<vk::DeviceSize>(m_bytesize),
                 reinterpret_cast<void*>(m_data.data())
             };
         }
@@ -72,8 +89,8 @@ namespace vuda
 
         //
         // the number of constants and the bytesize can be public
-        static constexpr size_t count = sizeof...(Ts);
-        static constexpr size_t bytesize = byte_size<Ts...>();
+        static constexpr size_t m_count = sizeof...(Ts);
+        static constexpr size_t m_bytesize = byte_size<Ts...>();
 
         //
         // c++11 rule of five
@@ -128,7 +145,7 @@ namespace vuda
 
         //
         // get copy of data
-        std::array<uint8_t, bytesize> data(void)
+        std::array<uint8_t, m_bytesize> data(void)
         {
             return m_data;
         }
@@ -154,8 +171,8 @@ namespace vuda
     private:
 
         vk::SpecializationInfo m_info;
-        std::array<vk::SpecializationMapEntry, count> m_entries;
-        std::array<uint8_t, bytesize> m_data;
+        std::array<vk::SpecializationMapEntry, m_count> m_entries;
+        std::array<uint8_t, m_bytesize> m_data;
     };
 
 } //namespace vuda

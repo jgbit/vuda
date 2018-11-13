@@ -14,63 +14,80 @@ namespace vuda
     {
     public:
 
-        default_storage_node(bool hostVisible) : m_hostVisible(hostVisible)
-        {            
+        default_storage_node(const vk::MemoryPropertyFlags& memory_properties, const size_t size, memory_allocator& allocator) :
+            m_hostVisible(memory_properties & vk::MemoryPropertyFlagBits::eHostVisible),
+            m_size(size)
+        {
+            //
+            // get pointer into memory chunk
+            m_ptrMemBlock = allocator.allocate(memory_properties, m_size);
+
+            //
+            // the memory remains mapped until it is freed by the user calling free/destroy
+            set_key(m_ptrMemBlock->get_ptr(), m_ptrMemBlock->get_size());
         }
 
         void set_data(default_storage_node* node)
         {
-            // copy node's satellite data
+            // copy node's satellite data            
+            m_size = node->m_size;
+            m_ptrMemBlock = node->m_ptrMemBlock;
             m_hostVisible = node->m_hostVisible;
+        }
+
+        void destroy(const vk::Device& device)
+        {
+            /*if(m_ptrMemBlock == nullptr)
+            {
+                std::ostringstream ostr;
+                ostr << std::this_thread::get_id() << ": value of m_ptrMemBlock is: " << m_ptrMemBlock << std::endl;
+                std::cout << ostr.str();
+            }*/
+
+            m_ptrMemBlock->deallocate();
+            m_ptrMemBlock = nullptr;
+        }
+
+        //
+        // get
+
+        void print(int depth = 0) const
+        {
+            std::ostringstream ostr;
+            ostr << std::this_thread::get_id() << ": ";
+            for(int i = 0; i < depth; ++i)
+                ostr << "-";
+            ostr << key() << " " << (uintptr_t)key() << " " << range() << " " << (uintptr_t)key() + range() << std::endl;
+            std::cout << ostr.str();
         }
 
         bool isHostVisible(void) const
         {
             return m_hostVisible;
         }
-                
-        virtual void destroy(const vk::Device& device) = 0;                
-        virtual vk::DeviceSize GetSize(void) const = 0;
-        //virtual vk::Buffer GetBuffer(void) const = 0;
-        virtual vk::Buffer GetBufferHost(void) const = 0;
-        virtual vk::Buffer GetBufferDevice(void) const = 0;
         
+        vk::Buffer GetBuffer(void) const
+        {
+            return m_ptrMemBlock->get_buffer();
+        }
+
+        vk::DeviceSize GetOffset(void) const
+        {
+            return m_ptrMemBlock->get_offset();
+        }
+
+        vk::DeviceSize GetSize(void) const
+        {
+            return m_size;
+        }
+    
     protected:
 
-        vk::MemoryRequirements create(const vk::PhysicalDevice &physDevice, const vk::Device& device, const vk::DeviceSize& size, const vk::BufferUsageFlags& usage, const vk::MemoryPropertyFlags& properties, memory_allocator& allocator, vk::Buffer& buffer, memory_block*& ptrMemBlock)
-        {
-            //
-            // create info
-            // [ only exclusive right now, i.e. access from one queue family (that can still be multiple queues/streams) ]
-            vk::BufferCreateInfo info = vk::BufferCreateInfo()
-                .setSize(size)
-                .setUsage(usage)
-                .setSharingMode(vk::SharingMode::eExclusive);
+        //
+        // memory block        
+        vk::DeviceSize m_size;
+        memory_block* m_ptrMemBlock;
 
-            //
-            // create stoarge buffer
-            buffer = device.createBuffer(info);
-
-            //
-            // check that memory requirements overlap with allocator
-            const vk::MemoryRequirements memreq = device.getBufferMemoryRequirements(buffer);
-            uint32_t memoryTypeIndex = vudaFindMemoryType(physDevice, memreq.memoryTypeBits, properties);
-
-            if(memoryTypeIndex != allocator.getMemoryTypeIndex())
-                throw std::runtime_error("vuda: can not allocate host buffer, allocator does not have the required type bits!");
-
-            //
-            // allocate
-            ptrMemBlock = allocator.allocate(memreq.size, memreq.alignment);
-
-            //
-            // bind buffer to memory
-            device.bindBufferMemory(buffer, ptrMemBlock->get_memory(), ptrMemBlock->get_offset());
-
-            //
-            return memreq;
-        }        
-            
     private:
 
         bool m_hostVisible;

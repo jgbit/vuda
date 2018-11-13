@@ -11,16 +11,29 @@ namespace vuda
         cbSubmitted = 2
     };
 
-    enum bufferUsageFlags { 
+    /*enum bufferUsageFlags { 
         eDeviceUsage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        
         eHostUsage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        //eHostInternalUsage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        eHostInternalUsage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+
         eCachedUsage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-        eCachedInternalUsage = VK_BUFFER_USAGE_TRANSFER_DST_BIT
+        //eCachedInternalUsage = VK_BUFFER_USAGE_TRANSFER_DST_BIT
+        eCachedInternalUsage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+    };*/
+
+    enum bufferUsageFlags {
+        eDefault = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
     };
 
-    enum bufferPropertiesFlags {
+    enum memoryPropertiesFlags {
+        //eDeviceProperties = vk::MemoryPropertyFlagBits::eDeviceLocal,
         eDeviceProperties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+
         eHostProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        eHostInternalProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        
         eCachedProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
         eCachedInternalProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT
     };
@@ -36,6 +49,18 @@ namespace vuda
 
     typedef vk::Event event_t;
     typedef uint32_t stream_t;
+
+    struct dim3
+    {
+        uint32_t x, y, z;
+
+        dim3(const uint32_t x) : x(x), y(1), z(1)
+        {}
+        dim3(const uint32_t x, const uint32_t y) : x(x), y(y), z(1)
+        {}
+        dim3(const uint32_t x, const uint32_t y, const uint32_t z) : x(x), y(y), z(z)
+        {}
+    };
     
     struct deviceProp
     {

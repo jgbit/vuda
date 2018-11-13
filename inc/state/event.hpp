@@ -19,7 +19,7 @@ namespace vuda
         //
         // set
 
-        void setStream(const stream_t& stream)
+        void set_stream(const stream_t& stream)
         {
             m_stream = stream;
         }
@@ -32,12 +32,12 @@ namespace vuda
             return std::chrono::duration_cast<std::chrono::duration<float>>(m_tick - start).count();
         }
 
-        time_point getTick(void) const
+        time_point get_tick(void) const
         {
             return m_tick;
         }
 
-        stream_t getStream(void) const
+        stream_t get_stream(void) const
         {
             return m_stream;
         }

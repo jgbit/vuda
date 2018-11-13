@@ -101,7 +101,7 @@ namespace vuda
         }
 
         template <typename... specialTypes>
-        bool UpdateDescriptorAndCommandBuffer(const vk::UniqueDevice& device, const vk::UniqueCommandBuffer& commandBuffer, const std::vector<vk::DescriptorBufferInfo>& descriptorBufferInfos, specialization<specialTypes...>& specials, const uint32_t blocks) const
+        bool UpdateDescriptorAndCommandBuffer(const vk::UniqueDevice& device, const vk::UniqueCommandBuffer& commandBuffer, const std::vector<vk::DescriptorBufferInfo>& descriptorBufferInfos, specialization<specialTypes...>& specials, const dim3 blocks) const
         {
             //
             // atomic counter
@@ -130,7 +130,7 @@ namespace vuda
             // [ redudancy: multiple computepipeline binds if function is called multiple times ]
             commandBuffer->bindPipeline(vk::PipelineBindPoint::eCompute, GetSpecializedPipeline(device, specials));
             commandBuffer->bindDescriptorSets(vk::PipelineBindPoint::eCompute, m_pipelineLayout.get(), 0, 1, &m_descriptorSet[descIndex].get(), 0, 0);
-            commandBuffer->dispatch(blocks, 1, 1);
+            commandBuffer->dispatch(blocks.x, blocks.y, blocks.z);
 
             //
             // insert pipeline barrier?

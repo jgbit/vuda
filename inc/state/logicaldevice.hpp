@@ -12,15 +12,16 @@ namespace vuda
 
         //
         // events
-        void CreateEvent(event_t* event);        
+        void CreateEvent(event_t* event);
+        void DestroyEvent(const event_t event);
         void RecordEvent(const std::thread::id tid, const event_t& event, const stream_t stream);        
         float GetElapsedTimeBetweenEvents(const event_t& start, const event_t& end);
 
         //
         // queries
-        //void GetQueryID(const std::thread::id tid, event_t* event) const;        
-        //void WriteTimeStamp(const std::thread::id tid, const event_t event, const stream_t stream) const;
-        //float GetQueryPoolResults(const std::thread::id tid, const event_t event) const;
+        void GetQueryID(const std::thread::id tid, uint32_t* event) const;
+        void WriteTimeStamp(const std::thread::id tid, const uint32_t event, const stream_t stream) const;
+        float GetQueryPoolResults(const std::thread::id tid, const uint32_t startQuery, const uint32_t stopQuery) const;
 
         //
         // memory
@@ -40,7 +41,7 @@ namespace vuda
                                     const std::vector<vk::DescriptorSetLayoutBinding>& bindings,
                                     specialization<specialTypes...>& specials,
                                     const std::vector<vk::DescriptorBufferInfo>& bufferDescriptors,
-                                    const uint32_t blocks,
+                                    const dim3 blocks,
                                     const uint32_t stream);
 
         /*template <typename... specialTypes>
@@ -51,13 +52,13 @@ namespace vuda
         void CreateCommandPool(const std::thread::id tid);
         
         void memcpyHtH(const std::thread::id tid, void* dst, const void* src, const size_t count, const uint32_t stream) const;
-        void memcpyToDevice(const std::thread::id tid, void* dst, const void* src, const size_t count, const uint32_t stream) const;
-        void memcpyDeviceToDevice(const std::thread::id tid, void* dst, const void* src, const size_t count, const uint32_t stream);
+        void memcpyToDevice(const std::thread::id tid, void* dst, const void* src, const size_t count, const uint32_t stream);
+        void memcpyDeviceToDevice(const std::thread::id tid, void* dst, const void* src, const size_t count, const uint32_t stream) const;
         void memcpyToHost(const std::thread::id tid, void* dst, const void* src, const size_t count, const uint32_t stream);
 
         //void UpdateDescriptorAndCommandBuffer(const std::thread::id tid, const uint64_t kernelIndex, const std::vector<void*>& memaddr, const std::vector<vk::DescriptorBufferInfo>& bufferDescriptors, const uint32_t stream);
-        void FlushQueue(const std::thread::id tid, const uint32_t stream) const;
-        void FlushEvent(const std::thread::id tid, const event_t event);
+        void FlushQueue(const std::thread::id tid, const uint32_t stream);
+        void FlushEvent(const std::thread::id tid, const event_t event);        
 
         //
         //
@@ -66,15 +67,14 @@ namespace vuda
     private:
 
         //std::vector<uint32_t> GetStreamIdentifiers(const void* src);
-
-        host_cached_node_internal* get_cached_buffer(const vk::DeviceSize size);
+                
         void push_mem_node(default_storage_node* node);
 
     private:
 
         //
         // device handles
-        vk::PhysicalDevice m_physDevice;
+        //vk::PhysicalDevice m_physDevice;
         vk::UniqueDevice m_device;
 
         //
@@ -93,15 +93,18 @@ namespace vuda
         // thread command pools
         std::unique_ptr<std::shared_mutex> m_mtxCmdPools;
         std::unordered_map<std::thread::id, thrdcmdpool> m_thrdCommandPools;
+        std::vector<std::unordered_map<internal_node*, std::vector<std::thread::id>>> m_internal_pinned_buffers_in_use;
 
         //
         // queue family and queues
         std::vector<std::unique_ptr<std::mutex>> m_mtxQueues;        
         std::unordered_map<uint32_t, std::vector<vk::Queue>> m_queues;
+        //std::vector<std::queue<internal_node*>> m_internal_pinned_buffers_in_use;        
 
         //
         // compute kernels        
         std::unique_ptr<std::shared_mutex> m_mtxKernels;
+        //std::vector<std::shared_ptr<kernel_interface>> m_kernels;
         std::vector<std::shared_ptr<kernel_interface>> m_kernels;
 
         //
@@ -122,17 +125,12 @@ namespace vuda
 
         //
         // memory
-        std::unique_ptr<std::mutex> m_mtxAllocatorDevice;
-        std::unique_ptr<std::mutex> m_mtxAllocatorHost;
-        std::unique_ptr<std::mutex> m_mtxAllocatorCached;
-        std::unordered_map<VkFlags, uint32_t> m_memoryAllocatorTypes;
-        memory_allocator m_allocatorDevice;
-        memory_allocator m_allocatorHost;
-        memory_allocator m_allocatorCached;
+        memory_allocator m_allocator;
 
-        // cached buffers
-        std::unique_ptr<std::mutex> m_mtxCached_internal;
-        std::vector<std::unique_ptr<host_cached_node_internal>> m_cachedBuffers;
+        //
+        // internal buffers {cached, pinned}
+        internal_buffers<host_cached_node_internal> m_cachedBuffers;        
+        internal_buffers<host_pinned_node_internal> m_pinnedBuffers;        
 
         //
         // events
@@ -141,7 +139,7 @@ namespace vuda
 
         //
         // kernel to memory access
-        //std::unique_ptr<std::shared_mutex> m_mtxResourceKernelAccess;
+        
     };
 
 } //namespace vuda

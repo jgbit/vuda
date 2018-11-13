@@ -7,10 +7,10 @@ namespace vuda
     public:
         thread_info(const int deviceID, logical_device* deviceptr) : m_deviceID(deviceID), m_ldptr(deviceptr) {}
 
-        /*int GetID(void) const
+        int GetDeviceID(void) const
         {
             return m_deviceID;
-        }*/
+        }
 
         logical_device* GetLogicalDevice(void) const
         {

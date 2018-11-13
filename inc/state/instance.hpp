@@ -63,18 +63,18 @@ namespace vuda
             static std::atomic<bool> debug_initialized = false;
             static std::atomic_flag debug_lock = ATOMIC_FLAG_INIT;
 
-            if(debug_lock.test_and_set(std::memory_order_acquire) == false)
+            if(debug_lock.test_and_set() == false) //std::memory_order_acquire
             {
                 std::ostringstream ostr;
                 ostr << std::this_thread::get_id() << " - validation layer enabled" << std::endl;
                 std::cout << ostr.str();
 
                 SetupDebugCallback(local_instance);
-                debug_initialized = true;
+                debug_initialized.store(true);
             }
 
             // simple spin lock make sure that debug layer has been initialized
-            while(debug_initialized == false)
+            while(debug_initialized.load() == false)
                 ;
 
             return local_instance;

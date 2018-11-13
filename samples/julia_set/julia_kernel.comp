@@ -1,0 +1,58 @@
+#version 450 core
+
+//
+// constant workgroup size
+layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+
+//
+// dim of image defined by a specialization constant
+layout( constant_id = 0 ) const uint DIM = 4096;
+
+//
+// resources
+layout(set = 0, binding = 0) writeonly buffer ptrC { uint ptr[]; };
+
+//
+// entry function
+void main(void)
+{
+    //
+    // map from block_id to pixel position
+    uint x = gl_WorkGroupID.x;
+    uint y = gl_WorkGroupID.y;
+    uint offset = x + y * gl_NumWorkGroups.x;
+
+    //
+    // calculate
+    int juliaValue = 1;
+        
+    const float scale = 1.5f;
+    float dim_half = float(gl_NumWorkGroups.x / 2.0); //float(DIM / 2);
+    float jx = scale * (dim_half - float(x)) / dim_half;
+    float jy = scale * (dim_half - float(y)) / dim_half;
+
+    vec2 c = vec2(-0.8f, -0.156f);
+    vec2 a = vec2(jx, jy);
+
+    for(int i = 0; i < 200; ++i)
+    {
+        vec2 temp; // a*a + c
+        temp.x = a.x*a.x - a.y*a.y + c.x;
+        temp.y = 2.0f*a.x*a.y + c.y;
+        a = temp;
+
+        if(a.x*a.x + a.y*a.y > 1000.0f)
+        {
+            juliaValue = 0;
+            break;
+        }
+    }        
+
+    //
+    // (4x uint8 are packed into 1x uint32)
+    uint value = (255 << 24)  |  (0 << 16)  |  (0 << 8)  |  (255 * juliaValue);
+
+    //
+    // write value
+    ptr[offset] = value;
+}

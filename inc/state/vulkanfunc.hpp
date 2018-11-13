@@ -55,6 +55,25 @@ namespace vuda
         //throw std::runtime_error("Failed to find suitable memory type!");
     }
 
+    inline uint32_t vudaGetNumberOfMemoryTypes(const vk::PhysicalDevice& device, std::vector<uint32_t>& memoryIndices)
+    {
+        vk::PhysicalDeviceMemoryProperties deviceMemoryProperties;
+        device.getMemoryProperties(&deviceMemoryProperties);
+
+        uint32_t count = 0;
+        for(uint32_t i = 0; i < deviceMemoryProperties.memoryTypeCount; i++)
+        {
+            // mask is non-zero
+            if(deviceMemoryProperties.memoryTypes[i].propertyFlags)
+            {
+                memoryIndices.push_back(i);
+                ++count;
+            }
+        }
+
+        return count;
+    }
+
     inline vk::DeviceSize findDeviceLocalMemorySize(const vk::PhysicalDevice& physDevice)
     {
         vk::PhysicalDeviceMemoryProperties deviceMemoryProperties;
@@ -75,15 +94,15 @@ namespace vuda
     inline uint32_t findMemoryType_Device(const vk::PhysicalDevice& physDevice, const vk::Device& device)
     {
         const std::vector<vk::MemoryPropertyFlags>& candidates = {
-            vk::MemoryPropertyFlags(bufferPropertiesFlags::eDeviceProperties),
+            vk::MemoryPropertyFlags(memoryPropertiesFlags::eDeviceProperties),
             vk::MemoryPropertyFlagBits::eDeviceLocal
         };
 
         //
-        // create temp buffer
+        // create temporary buffer
         vk::BufferCreateInfo info = vk::BufferCreateInfo()
             .setSize(1)
-            .setUsage(vk::BufferUsageFlags(bufferUsageFlags::eDeviceUsage))
+            .setUsage(vk::BufferUsageFlags(bufferUsageFlags::eDefault))
             .setSharingMode(vk::SharingMode::eExclusive);
         vk::UniqueBuffer buffer = device.createBufferUnique(info);
         const VkMemoryRequirements memreq = device.getBufferMemoryRequirements(buffer.get());
@@ -101,15 +120,15 @@ namespace vuda
     inline uint32_t findMemoryType_Host(const vk::PhysicalDevice& physDevice, const vk::Device& device)
     {
         const std::vector<vk::MemoryPropertyFlags>& candidates = {
-            vk::MemoryPropertyFlags(bufferPropertiesFlags::eHostProperties),
+            vk::MemoryPropertyFlags(memoryPropertiesFlags::eHostProperties),
             vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
         };
 
         //
-        // create temp buffer
+        // create temporary buffer
         vk::BufferCreateInfo info = vk::BufferCreateInfo()
             .setSize(1)
-            .setUsage(vk::BufferUsageFlags(bufferUsageFlags::eHostUsage))
+            .setUsage(vk::BufferUsageFlags(bufferUsageFlags::eDefault))
             .setSharingMode(vk::SharingMode::eExclusive);
         vk::UniqueBuffer buffer = device.createBufferUnique(info);
         const VkMemoryRequirements memreq = device.getBufferMemoryRequirements(buffer.get());
@@ -133,15 +152,15 @@ namespace vuda
         */
 
         const std::vector<vk::MemoryPropertyFlags>& candidates = { 
-            vk::MemoryPropertyFlags(bufferPropertiesFlags::eCachedProperties), 
+            vk::MemoryPropertyFlags(memoryPropertiesFlags::eCachedProperties),
             vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
         };
 
         //
-        // create temp buffer
+        // create temporary buffer
         vk::BufferCreateInfo info = vk::BufferCreateInfo()
             .setSize(1)
-            .setUsage(vk::BufferUsageFlags(bufferUsageFlags::eCachedUsage))
+            .setUsage(vk::BufferUsageFlags(bufferUsageFlags::eDefault))
             .setSharingMode(vk::SharingMode::eExclusive);
         vk::UniqueBuffer buffer = device.createBufferUnique(info);
         const VkMemoryRequirements memreq = device.getBufferMemoryRequirements(buffer.get());

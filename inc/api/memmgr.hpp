@@ -43,7 +43,7 @@ namespace vuda
         return vudaSuccess;
     }
 
-    // __host__ ​ __device__ ​
+    // __host__ ​ __device__
     inline error_t malloc(void** devPtr, size_t size)
     {
         //
@@ -88,19 +88,19 @@ namespace vuda
         else if(kind == vuda::memcpyHostToDevice)
         {
             //
-            // submit the copy command to command buffer (this is an async call)
+            // submit the copy command to command buffer
             tinfo.GetLogicalDevice()->memcpyToDevice(tid, dst, src, count, stream);
         }
         else if(kind == vuda::memcpyDeviceToDevice)
         {
             //
-            // submit the copy command to command buffer (this is an async call)
+            // submit the copy command to command buffer
             tinfo.GetLogicalDevice()->memcpyDeviceToDevice(tid, dst, src, count, stream);
         }
         else if(kind == vuda::memcpyDeviceToHost)
         {            
             //
-            // submit the copy command to command buffer (this is an async call)
+            // submit the copy command to command buffer
             tinfo.GetLogicalDevice()->memcpyToHost(tid, dst, src, count, stream);
         }
 

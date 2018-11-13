@@ -26,79 +26,92 @@ int preloadkernel(void)
 
 int blocks_and_threads(const std::thread::id tid)
 {
+    //
+    // settings
+    const int deviceID = 0;
+    vuda::setDevice(deviceID);
+
+    vuda::deviceProp prop;
+    vuda::getDeviceProperties(&prop, deviceID);
+                
+    const int maxblocks = 256;
+    const int maxthreads = prop.maxThreadsPerBlock;
+    const int N = maxblocks * maxthreads;
+    int* c = new int [N];
+
+    const int stream_id = 0;
+    int *dev_c;
+
+    std::random_device rd;
+    std::mt19937 mt(rd());        
+    std::uniform_int_distribution<uint32_t> dist(1, 100);
+
+    //
+    // allocate memory on the device
+    vuda::malloc((void**)&dev_c, N * sizeof(int));
+
+    //
+    // run kernel for different settings of the number of threads
+    for(int blocks = 64; blocks <= maxblocks; blocks += 64)
+    {
+        for(int threads = 64; threads <= maxthreads; threads += 64)
+        {
+            int current_size = blocks * threads;
+
+            //
+            // reset all
+            memset(c, 0, N * sizeof(int));
+
+            // generate a random unsigned integer
+            uint32_t rndnum  = dist(mt);
+
+            //
+            // launch kernel with threads
+            vuda::launchKernel("threadid.spv", "main", stream_id, blocks,
+                                threads, rndnum, dev_c);
+
+            //
+            // copy result to host
+            vuda::memcpy(c, dev_c, current_size * sizeof(int), vuda::memcpyDeviceToHost);
+
+            //
+            // display result
+            bool check = true;
+            std::cout << "#blocks: " << blocks << " #threads: " << threads;
+            for(int i = 0; i < current_size; ++i)
+            {
+                if(c[i] != i * rndnum)
+                {
+                    std::cout << ", wrong result at index " << i << std::endl;
+                    check = false;
+                    break;
+                }
+            }
+            if(check)
+                std::cout << ", ok" << std::endl;
+
+        }
+    }
+
+    //
+    // free memory
+    vuda::free(dev_c);
+    delete[] c;    
+
+    return EXIT_SUCCESS;
+}
+
+int main()
+{
     try
     {
         //
-        // settings
-        const int deviceID = 0;
-        vuda::SetDevice(deviceID);
-
-        vuda::deviceProp prop;
-        vuda::GetDeviceProperties(&prop, deviceID);
-                
-        const int maxblocks = 256;
-        const int maxthreads = prop.maxThreadsPerBlock;
-        const int N = maxblocks * maxthreads;
-        int* c = new int [N];
-
-        const int stream_id = 0;
-        int *dev_c;
-
-        std::random_device rd;
-        std::mt19937 mt(rd());        
-        std::uniform_int_distribution<uint32_t> dist(1, 100);
+        // call kernel with different num of kernel threads
+        blocks_and_threads(std::this_thread::get_id());
 
         //
-        // allocate memory on the device
-        vuda::malloc((void**)&dev_c, N * sizeof(int));
-
-        //
-        // run kernel for different settings of the number of threads
-        for(int blocks = 64; blocks <= maxblocks; blocks += 64)
-        {
-            for(int threads = 64; threads <= maxthreads; threads += 64)
-            {
-                int current_size = blocks * threads;
-
-                //
-                // reset all
-                memset(c, 0, N * sizeof(int));
-
-                // generate a random unsigned integer
-                uint32_t rndnum  = dist(mt);
-
-                //
-                // launch kernel with threads
-                vuda::launchKernel("threadid.spv", "main", stream_id, blocks,
-                                   threads, rndnum, dev_c);
-
-                //
-                // copy result to host
-                vuda::memcpy(c, dev_c, current_size * sizeof(int), vuda::memcpyDeviceToHost);
-
-                //
-                // display result
-                bool check = true;
-                std::cout << "#blocks: " << blocks << " #threads: " << threads;
-                for(int i = 0; i < current_size; ++i)
-                {
-                    if(c[i] != i * rndnum)
-                    {
-                        std::cout << ", wrong result at index " << i << std::endl;
-                        check = false;
-                        break;
-                    }
-                }
-                if(check)
-                    std::cout << ", ok" << std::endl;
-
-            }
-        }
-
-        //
-        // free memory
-        vuda::free(dev_c);
-        delete[] c;
+        // call kernel from different host threads with different number of kernel threads
+        // ...
     }
     catch(vk::SystemError err)
     {
@@ -116,19 +129,11 @@ int blocks_and_threads(const std::thread::id tid)
         return EXIT_FAILURE;
     }
 
-    return EXIT_SUCCESS;
-}
-
-int main()
-{
-    //
-    // call kernel with different num of kernel threads
-    blocks_and_threads(std::this_thread::get_id());
-
-    //
-    // call kernel from different host threads with different number of kernel threads
-    // ...
-
     /*std::cout << "done" << std::endl;
     std::cin.get();*/
+
+#ifndef NDEBUG
+    system("pause");
+#endif
+    return EXIT_SUCCESS;
 }

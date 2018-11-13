@@ -11,13 +11,26 @@ namespace vuda
         //
         // recursive helpers
 
-        template <typename head, typename... tail>
+        /*template <typename head, typename... tail>
         static constexpr size_t memptrs()
         {
+            // c++17
             if constexpr(sizeof...(tail) == 0)
                 return std::is_pointer<head>::value;
             else
                 return std::is_pointer<head>::value + memptrs<tail... >();
+        }*/
+
+        // recursive c++11
+        template <typename h1>
+        static constexpr size_t memptrs()
+        {
+            return std::is_pointer<h1>::value;
+        }
+        template <typename h1, typename h2, typename... tail>
+        static constexpr size_t memptrs()
+        {
+            return std::is_pointer<h1>::value + memptrs<h2, tail... >();
         }
 
         //
@@ -100,7 +113,7 @@ namespace vuda
             else if constexpr(std::is_arithmetic<head>::value)
             {
                 //
-                // fill speical?
+                // fill special
                 m_tl_special.sp.set<sp_index>(h);
 
                 if constexpr(sizeof...(tail) > 0)
@@ -115,7 +128,7 @@ namespace vuda
     public:
 
         using specialTypes = filter_t<std::is_arithmetic, Ts...>;
-        static constexpr size_t memptrCount = memptrs<Ts...>();        
+        static constexpr size_t memptrCount = memptrs<Ts...>();
                 
         //
         //

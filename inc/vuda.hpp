@@ -11,6 +11,8 @@
 #include <mutex>
 #include <shared_mutex>
 #include <atomic>
+#include <vector>
+#include <queue>
 #include <map>
 #include <unordered_map>
 #include <deque>
@@ -29,7 +31,9 @@
 #include "state/memoryallocator.hpp"
 #include "state/binarysearchtree.hpp"
 #include "state/storagebuffer.hpp"
+#include "state/virtualalloc.hpp"
 #include "state/devicebuffer.hpp"
+#include "state/internalbuffers.hpp"
 #include "state/hostbuffer.hpp"
 #include "state/cachedbuffer.hpp"
 #include "state/thrdcmdpool.hpp"

@@ -9,9 +9,18 @@ namespace vuda
     inline error_t eventCreate(event_t* event)
     {
         std::thread::id tid = std::this_thread::get_id();
-        const thread_info tinfo = interface_thread_info::GetThreadInfo(tid);
-        //tinfo.GetLogicalDevice()->GetQueryID(tid, event);
+        const thread_info tinfo = interface_thread_info::GetThreadInfo(tid);        
         tinfo.GetLogicalDevice()->CreateEvent(event);
+        return vudaSuccess;
+    }
+
+    //
+    // Destroys an event object.
+    /*__host__ __device__*/
+    inline error_t eventDestroy(event_t event)
+    {
+        const thread_info tinfo = interface_thread_info::GetThreadInfo(std::this_thread::get_id());
+        tinfo.GetLogicalDevice()->DestroyEvent(event);
         return vudaSuccess;
     }
 
@@ -42,14 +51,14 @@ namespace vuda
 
     //
     // Records an event.
-    /*__host__ ? __device__*/
+    /*__host__ __device__*/
     inline error_t eventRecord(event_t event, stream_t stream = 0)
     {
         std::thread::id tid = std::this_thread::get_id();
         const thread_info tinfo = interface_thread_info::GetThreadInfo(tid);        
         tinfo.GetLogicalDevice()->RecordEvent(tid, event, stream);
         return vudaSuccess;
-    }        
+    }
 
     //
     // Waits for an event to complete.

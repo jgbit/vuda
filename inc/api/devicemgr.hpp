@@ -11,9 +11,20 @@ namespace vuda
         tinfo.GetLogicalDevice()->WaitOn();
         return vudaSuccess;
     }*/
-    
+
+    // Returns which device is currently being used.
+    /*__host__ ​ __device__*/
+    inline error_t getDevice(int* device)
+    {
+        //
+        // get device assigned to thread
+        const thread_info tinfo = interface_thread_info::GetThreadInfo(std::this_thread::get_id());
+        *device = tinfo.GetDeviceID();
+        return vudaSuccess;        
+    }
+
     /* __host__ ​ __device__ */
-    inline error_t GetDeviceCount(int* count)
+    inline error_t getDeviceCount(int* count)
     {
         vk::UniqueInstance& inst = Instance::get();
         *count = (int)inst->enumeratePhysicalDevices().size();
@@ -21,7 +32,7 @@ namespace vuda
     }
 
     /*__host__*/
-    inline error_t GetDeviceProperties(deviceProp* prop, int device)
+    inline error_t getDeviceProperties(deviceProp* prop, int device)
     {
         vk::PhysicalDevice physDevice = vudaGetPhysicalDevice(device);
 
@@ -45,7 +56,7 @@ namespace vuda
     }
 
     // __host__
-    inline error_t SetDevice(int device)
+    inline error_t setDevice(int device)
     {
         vk::PhysicalDevice physDevice = vudaGetPhysicalDevice(device);
 

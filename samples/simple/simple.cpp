@@ -6,13 +6,13 @@
 #define VUDA_DEBUG_ENABLED
 #endif
 
-#include <vuda.hpp>
 #include <iostream>
+#include <vuda.hpp>
 
 int main(void)
 {
-    // assign a device to thread
-    vuda::SetDevice(0);
+    // assign a device to the thread
+    vuda::setDevice(0);
     // allocate memory on the device
     const int N = 5000;
     int a[N], b[N], c[N];

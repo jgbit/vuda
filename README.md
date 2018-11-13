@@ -5,21 +5,24 @@ VUDA is a header-only library based on Vulkan that provides a CUDA Runtime API i
 ## Setup
 
 The only requirements for developing with the VUDA library is to have access to a vulkan compatible system and install the [Vulkan SDK](https://vulkan.lunarg.com/sdk/home).
-To compile a c++11 program using the VUDA library it is necessary to specify:
+
+To compile a c++17 program using the VUDA library it is necessary to specify:
 * the include path to the Vulkan SDK header files
 * the include path to the Vulkan SDK library files
 * the additional dependency to the vulkan-1.lib
 * the include path to the VUDA header file
+
 It is recommended to compile towards x64.
 
 ## Usage
 
 ```c++
 #include <vuda.hpp>
+
 int main(void)
 {
-    // assign a device to thread
-    vuda::SetDevice(0);
+    // assign a device to the thread
+    vuda::setDevice(0);
     // allocate memory on the device
     const int N = 5000;
     int a[N], b[N], c[N];
@@ -39,12 +42,12 @@ int main(void)
     const int stream_id = 0;
     const int blocks = 128;
     const int threads = 128;
-    vuda::kernelLaunch("add.spv", "main", blocks, stream_id, threads, dev_a, dev_b, dev_c, N);
+    vuda::launchKernel("add.spv", "main", stream_id, blocks, threads, dev_a, dev_b, dev_c, N);
     // copy result to host
     vuda::memcpy(c, dev_c, N * sizeof(int), vuda::memcpyDeviceToHost);
 
-    // do something useful with the result in array c ...
-
+    // do something useful with the result in array c ...    
+    
     // free memory on device
     vuda::free(dev_a);
     vuda::free(dev_b);
@@ -63,6 +66,7 @@ int main(void)
 
 | Date | Changes |
 | :--- | :------ |
+| 13/11/2018 | virtual alloc for local device mem, one buffer per mem alloc, vuda::events, sync memcpy conformity, bandwidthtest, julia set |
 | 25/10/2018 | memory allocator introduced: mallocHost, hostAlloc, optimized memory transfers, (comparable speeds with cuda in simple vector addition) |
 | 17/10/2018 | kernel interface updated: kernel specialization, arbitrary arguments |
 | 06/10/2018 | initial commit |
