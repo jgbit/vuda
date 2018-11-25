@@ -41,20 +41,20 @@ namespace vuda
         // type list wrap of specialization class
         template <typename> struct tl_wrap_special;
 
-        template <typename... Ts>
-        struct tl_wrap_special<type_list<Ts...>>
+        template <typename... Ts1>
+        struct tl_wrap_special<type_list<Ts1...>>
         {
-            specialization<Ts...> sp;
+            specialization<Ts1...> sp;
         };
 
         //
         // type list append implementation
         template <typename, typename> struct list_append_impl;
 
-        template <typename... Ts, typename... Us>
-        struct list_append_impl<type_list<Ts...>, type_list<Us...>>
+        template <typename... Ts1, typename... Us1>
+        struct list_append_impl<type_list<Ts1...>, type_list<Us1...>>
         {
-            using type = type_list<Ts..., Us...>;
+            using type = type_list<Ts1..., Us1...>;
         };
 
         //
@@ -78,8 +78,8 @@ namespace vuda
 
         //
         // convenience
-        template <template <typename> class Predicate, typename... Ts>
-        using filter_t = typename filter_impl<Predicate, Ts...>::type;                
+        template <template <typename> class Predicate, typename... Ts1>
+        using filter_t = typename filter_impl<Predicate, Ts1...>::type;                
 
 
         //
@@ -114,7 +114,7 @@ namespace vuda
             {
                 //
                 // fill special
-                m_tl_special.sp.set<sp_index>(h);
+                m_tl_special.sp.template set<sp_index>(h);
 
                 if constexpr(sizeof...(tail) > 0)
                     fill_memptr<begin + 1, rsrc_index, sp_index + 1, tail...>(ldptr, t...);

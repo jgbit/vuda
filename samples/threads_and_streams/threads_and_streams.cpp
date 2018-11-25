@@ -379,7 +379,7 @@ int main(int argc, char *argv[])
     //
     // arguments
     std::vector<const char*> args;
-    for(size_t i = 0; i < argc; i++)
+    for(size_t i = 0; i < (size_t)argc; i++)
         args.push_back(argv[i]);
 
     //
@@ -387,7 +387,7 @@ int main(int argc, char *argv[])
     // {problem size, run all tests }
 
     unsigned int N = 1000000;
-    unsigned int test = 0;
+    //unsigned int test = 0;
     std::vector<bool> test_runs(3, true);
     /*if(HandleArguments(N, test) == EXIT_SUCCESS)
         return EXIT_SUCCESS;*/

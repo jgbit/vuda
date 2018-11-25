@@ -65,14 +65,14 @@ namespace vuda
             m_shaderModule(device->createShaderModuleUnique(vk::ShaderModuleCreateInfo({}, m_code.size(), reinterpret_cast<const uint32_t*>(m_code.data())))),
             m_descriptorSetLayout(device->createDescriptorSetLayoutUnique(vk::DescriptorSetLayoutCreateInfo({}, (uint32_t)bindings.size(), bindings.data()))),
             m_pipelineLayout(device->createPipelineLayoutUnique(vk::PipelineLayoutCreateInfo({}, 1, &m_descriptorSetLayout.get()))),            
-            m_descriptorPoolSize(vk::DescriptorPoolSize(vk::DescriptorType::eStorageBuffer, (uint32_t)bindings.size())),
 
             //
             // allocate a descriptor sets used for multiple submissions of the kernel
-            m_descriptorSetIndex(0),
-            m_maxDescriptorSet( VUDA_MAX_KERNEL_DESCRIPTOR_SETS ),            
+            m_maxDescriptorSet(VUDA_MAX_KERNEL_DESCRIPTOR_SETS),
+            m_descriptorSetIndex(0),            
 
             m_descriptorSetLayouts(m_maxDescriptorSet, m_descriptorSetLayout.get()),
+            m_descriptorPoolSize(vk::DescriptorPoolSize(vk::DescriptorType::eStorageBuffer, (uint32_t)bindings.size())),
             m_descriptorPool(device->createDescriptorPoolUnique(vk::DescriptorPoolCreateInfo(vk::DescriptorPoolCreateFlags(vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet /*| vk::DescriptorPoolCreateFlagBits::eUpdateAfterBindEXT*/), m_maxDescriptorSet, 1, &m_descriptorPoolSize))),
             m_descriptorSet(device->allocateDescriptorSetsUnique(vk::DescriptorSetAllocateInfo(m_descriptorPool.get(), m_maxDescriptorSet, m_descriptorSetLayouts.data())))
         {
@@ -167,8 +167,8 @@ namespace vuda
                 .setPName(m_entryName.c_str())
                 .setPSpecializationInfo(&specials.info());
 
-            std::pair<std::map<std::array<uint8_t, specializationByteSize>, vk::UniquePipeline>::iterator, bool> ret;
-            ret = m_specializedComputePipelines.insert(std::make_pair(specials.data(), device->createComputePipelineUnique(nullptr, vk::ComputePipelineCreateInfo({}, info, m_pipelineLayout.get()))));
+            //std::pair<std::map<std::array<uint8_t, specializationByteSize>, vk::UniquePipeline>::iterator, bool> ret;
+            auto ret = m_specializedComputePipelines.insert(std::make_pair(specials.data(), device->createComputePipelineUnique(nullptr, vk::ComputePipelineCreateInfo({}, info, m_pipelineLayout.get()))));
 
             return (*ret.first).second.get();
         }
@@ -193,28 +193,28 @@ namespace vuda
     private:
 
         //
-        //
-        uint32_t m_maxDescriptorSet;
-        mutable std::atomic<uint32_t> m_descriptorSetIndex;
-
-        //
         //        
         //vk::SpecializationInfo m_specializationInfo;
         //vk::PipelineShaderStageCreateInfo m_pipelineShaderStageCreateInfo;
 
         //
         // shader module
-        std::vector<char> m_code;        
-        vk::UniqueShaderModule m_shaderModule;        
+        std::vector<char> m_code;
+        vk::UniqueShaderModule m_shaderModule;
 
         //
-        // descriptor set layout        
+        // descriptor set layout
         vk::UniqueDescriptorSetLayout m_descriptorSetLayout;
-        std::vector<vk::DescriptorSetLayout> m_descriptorSetLayouts;
-
+        
         //    
         // pipeline layout
         vk::UniquePipelineLayout m_pipelineLayout;
+
+        //
+        // descriptor set layouts
+        uint32_t m_maxDescriptorSet;
+        mutable std::atomic<uint32_t> m_descriptorSetIndex;
+        std::vector<vk::DescriptorSetLayout> m_descriptorSetLayouts;
         
         //
         // compute pipelines

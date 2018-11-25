@@ -34,6 +34,11 @@ namespace vuda
             set_key(m_ptrVirtual, m_size);
         }
 
+        ~device_buffer_node()
+        {
+            // call destroy?
+        }
+
         void set_data(default_storage_node* node)
         {
             // invoke base
@@ -46,19 +51,18 @@ namespace vuda
             m_ptrVirtual = deriv->m_ptrVirtual;
         }
 
-        void destroy(const vk::Device& device)
+        void destroy(void)
         {
             // invoke base
-            default_storage_node::destroy(device);
+            default_storage_node::destroy();
 
             //
             // clean up virtual mem reservation
             int retflag = detail::VirtFree(m_ptrVirtual, m_allocatedSize);
 
-#ifdef VUDA_DEBUG_ENABLED
+            //assert(retflag);
             if(retflag == 0)
                 throw std::runtime_error("vuda: failed to free virtual memory reservation!");
-#endif
         }
 
         //

@@ -80,7 +80,7 @@ int blocks_and_threads(const std::thread::id tid)
             std::cout << "#blocks: " << blocks << " #threads: " << threads;
             for(int i = 0; i < current_size; ++i)
             {
-                if(c[i] != i * rndnum)
+                if(c[i] != i * (int)rndnum)
                 {
                     std::cout << ", wrong result at index " << i << std::endl;
                     check = false;

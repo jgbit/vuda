@@ -15,8 +15,8 @@ namespace vuda
     public:
 
         default_storage_node(const vk::MemoryPropertyFlags& memory_properties, const size_t size, memory_allocator& allocator) :
-            m_hostVisible(memory_properties & vk::MemoryPropertyFlagBits::eHostVisible),
-            m_size(size)
+            m_size(size),
+            m_hostVisible(memory_properties & vk::MemoryPropertyFlagBits::eHostVisible)            
         {
             //
             // get pointer into memory chunk
@@ -27,6 +27,10 @@ namespace vuda
             set_key(m_ptrMemBlock->get_ptr(), m_ptrMemBlock->get_size());
         }
 
+        virtual ~default_storage_node()
+        {
+        }
+
         void set_data(default_storage_node* node)
         {
             // copy node's satellite data            
@@ -35,7 +39,7 @@ namespace vuda
             m_hostVisible = node->m_hostVisible;
         }
 
-        void destroy(const vk::Device& device)
+        virtual void destroy(void)
         {
             /*if(m_ptrMemBlock == nullptr)
             {

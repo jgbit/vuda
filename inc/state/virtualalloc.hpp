@@ -1,5 +1,8 @@
 #pragma once
 
+//
+// https://stackoverflow.com/questions/142508/how-do-i-check-os-with-a-preprocessor-directive/8249232
+
 #if defined(__linux__) || defined(__unix__)
 #define PLATFORM_NAME VUDA_LINUX
 #include <unistd.h>
@@ -83,12 +86,7 @@ namespace vuda
 
 #elif(PLATFORM_NAME == VUDA_LINUX)
 
-        /*
-            some help:
-            https://stackoverflow.com/questions/142508/how-do-i-check-os-with-a-preprocessor-directive/8249232
-            gcc -dM -E - </dev/null
-            g++ -std=c++11 -Wall main.cpp -o virtalloc
-
+        /*            
             https://linux.die.net/man/2/mmap
             http://man7.org/linux/man-pages/man2/mmap.2.html
         */

@@ -263,7 +263,7 @@ namespace vuda
 
         //
         // destroy the satellite data on the node
-        node->destroy(m_device.get());
+        node->destroy();
         
         //
         // remove node from the bst tree        
@@ -277,7 +277,7 @@ namespace vuda
         // remove the spliced node from the heap
         // (should perhaps recycle nodes? we know there is an upper limit on allocations)
         delete doomed;
-        doomed = nullptr;
+        //doomed = nullptr;
     }
 
     inline vk::DescriptorBufferInfo logical_device::GetBufferDescriptor(void* devPtr) const

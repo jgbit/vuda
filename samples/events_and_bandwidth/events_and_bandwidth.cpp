@@ -58,7 +58,7 @@ double profileTransfer(float *dst, const float *src, unsigned int n, vuda::memcp
 
 void profileCopies(float *h_a, float *h_b, float *d, unsigned int n, std::string desc)
 {
-    Timer timer;
+    /*Timer timer;
     std::cout << std::endl << desc << " transfers" << std::endl;
 
     const unsigned int bytes = n * sizeof(float);
@@ -68,7 +68,7 @@ void profileCopies(float *h_a, float *h_b, float *d, unsigned int n, std::string
     vuda::eventCreate(&startEvent);
     vuda::eventCreate(&stopEvent);
 
-    /*//
+    //
     //
     vuda::eventRecord(startEvent, 0);
     vuda::memcpy(d, h_a, bytes, vuda::memcpyHostToDevice, 0);        

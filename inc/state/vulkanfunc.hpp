@@ -11,7 +11,7 @@ namespace vuda
         // in C++11 standard library const means thread-safe
         std::vector<vk::PhysicalDevice> physicalDevices = Instance::get()->enumeratePhysicalDevices();
 
-        assert(device >= 0 && device < physicalDevices.size());
+        assert(device >= 0 && device < (int)physicalDevices.size());
 
         /*if(device < 0 && device >= physicalDevices.size())
         {
@@ -25,7 +25,7 @@ namespace vuda
     /*
         https://www.khronos.org/registry/vulkan/specs/1.1-extensions/man/html/VkPhysicalDeviceMemoryProperties.html
     */
-    inline uint32_t vudaFindMemoryType(const vk::PhysicalDevice& device, uint32_t typeFilter, vk::MemoryPropertyFlags properties)
+    inline int32_t vudaFindMemoryType(const vk::PhysicalDevice& device, uint32_t typeFilter, vk::MemoryPropertyFlags properties)
     {
         vk::PhysicalDeviceMemoryProperties deviceMemoryProperties;
         device.getMemoryProperties(&deviceMemoryProperties);
@@ -109,7 +109,7 @@ namespace vuda
 
         for(const vk::MemoryPropertyFlags& type : candidates)
         {
-            uint32_t index = vudaFindMemoryType(physDevice, memreq.memoryTypeBits, type);
+            int32_t index = vudaFindMemoryType(physDevice, memreq.memoryTypeBits, type);
             if(index != -1)
                 return index;
         }
@@ -135,7 +135,7 @@ namespace vuda
 
         for(const vk::MemoryPropertyFlags& type : candidates)
         {
-            uint32_t index = vudaFindMemoryType(physDevice, memreq.memoryTypeBits, type);
+            int32_t index = vudaFindMemoryType(physDevice, memreq.memoryTypeBits, type);
             if(index != -1)
                 return index;
         }
@@ -167,7 +167,7 @@ namespace vuda
 
         for(const vk::MemoryPropertyFlags& type : candidates)
         {
-            uint32_t index = vudaFindMemoryType(physDevice, memreq.memoryTypeBits, type);
+            int32_t index = vudaFindMemoryType(physDevice, memreq.memoryTypeBits, type);
             if(index != -1)
                 return index;
         }

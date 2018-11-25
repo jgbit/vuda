@@ -4,15 +4,20 @@ VUDA is a header-only library based on Vulkan that provides a CUDA Runtime API i
 
 ## Setup
 
-The only requirements for developing with the VUDA library is to have access to a vulkan compatible system and install the [Vulkan SDK](https://vulkan.lunarg.com/sdk/home).
+The only requirements for developing with the VUDA library is to have access to a Vulkan compatible system and install the [Vulkan SDK](https://vulkan.lunarg.com/sdk/home).
 
-To compile a c++17 program using the VUDA library it is necessary to specify:
-* the include path to the Vulkan SDK header files
-* the include path to the Vulkan SDK library files
-* the additional dependency to the vulkan-1.lib
-* the include path to the VUDA header file
+To compile a c++17 program (x64) using the VUDA library it is necessary to specify:
 
-It is recommended to compile towards x64.
+* the path to the VUDA header file
+* the path to the Vulkan SDK header files
+* the path to the Vulkan SDK library files and add the additional library dependency
+
+## Running a sample
+
+Each sample accompanying the VUDA library include a simple Makefile for compilation with g++.
+Simply set the path to the sample folder and type ```make```.
+Additionally, some of the samples includes an equivalent cuda version (for quick comparison).
+To compile cuda source code, install the [cuda toolkit](https://developer.nvidia.com/cuda-toolkit).
 
 ## Usage
 
@@ -66,6 +71,7 @@ int main(void)
 
 | Date | Changes |
 | :--- | :------ |
+| 25/11/2018 | Makefiles and gcc conformity |
 | 13/11/2018 | virtual alloc for local device mem, one buffer per mem alloc, vuda::events, sync memcpy conformity, bandwidthtest, julia set |
 | 25/10/2018 | memory allocator introduced: mallocHost, hostAlloc, optimized memory transfers, (comparable speeds with cuda in simple vector addition) |
 | 17/10/2018 | kernel interface updated: kernel specialization, arbitrary arguments |

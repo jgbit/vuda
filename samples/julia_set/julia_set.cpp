@@ -6,7 +6,9 @@
 
 #include <vuda.hpp>
 
+#if defined(_WIN64)
 #pragma warning(disable : 4996)
+#endif
 
 //
 // image resolution

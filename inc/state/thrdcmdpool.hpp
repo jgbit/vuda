@@ -108,7 +108,8 @@ namespace vuda
             
             //
             // vkGetQueryPoolResults will wait for the results to be available when VK_QUERY_RESULT_WAIT_BIT is specified
-            vk::Result res = device->getQueryPoolResults(m_queryPool.get(), queryID, numQueries, size, &result[0], stride, vk::QueryResultFlagBits::e64 | vk::QueryResultFlagBits::eWait);
+            //vk::Result res = 
+            device->getQueryPoolResults(m_queryPool.get(), queryID, numQueries, size, &result[0], stride, vk::QueryResultFlagBits::e64 | vk::QueryResultFlagBits::eWait);
 
             return result[0];
         }
@@ -194,7 +195,7 @@ namespace vuda
             
             //
             // record command buffer
-            bool ret = kernel.UpdateDescriptorAndCommandBuffer(device, m_commandBuffers[stream], bufferDescriptors, specials, blocks);
+            kernel.UpdateDescriptorAndCommandBuffer(device, m_commandBuffers[stream], bufferDescriptors, specials, blocks);
                         
             //
             // statistics
@@ -352,19 +353,19 @@ namespace vuda
         }*/
 
     private:
-                
-        vk::UniqueCommandPool m_commandPool;
+        
         std::vector<std::unique_ptr<std::mutex>> m_mtxCommandBuffers;
-        //mutable std::vector<std::mutex> m_mtxCommandBuffers;
-        mutable std::vector<commandBufferStateFlags> m_commandBufferState;
-        std::vector<vk::UniqueCommandBuffer> m_commandBuffers;
         std::vector<vk::UniqueFence> m_ufences;
+
+        vk::UniqueCommandPool m_commandPool;        
+        std::vector<vk::UniqueCommandBuffer> m_commandBuffers;
+        mutable std::vector<commandBufferStateFlags> m_commandBufferState;        
 
         //
         // time stamp queries
+        vk::UniqueQueryPool m_queryPool;
         mutable std::atomic<uint32_t> m_queryIndex;
         //mutable std::array<std::atomic<uint32_t>, VUDA_MAX_QUERY_COUNT> m_querytostream;
-        vk::UniqueQueryPool m_queryPool;
         
 
         //

@@ -7,14 +7,14 @@ namespace vuda
     /*__host__*/
     inline error_t streamCreate(stream_t* pStream)
     {
-
+        return vudaSuccess;
     }
 
     // Destroys and cleans up an asynchronous stream.
     /*__host__ __device__*/
     inline error_t streamDestroy(stream_t stream)
     {
-
+        return vudaSuccess;
     }        
 
     /*__host__*/
