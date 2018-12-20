@@ -2,41 +2,45 @@
 
 namespace vuda
 {
-    //
-    // vuda enums
+    namespace detail
+    {
+        //
+        // vuda enums
 
-    enum commandBufferStateFlags {
-        cbReset = 0,
-        cbRecording = 1,
-        cbSubmitted = 2
-    };
+        enum commandBufferStateFlags {
+            cbReset = 0,
+            cbRecording = 1,
+            cbSubmitted = 2
+        };
 
-    /*enum bufferUsageFlags { 
-        eDeviceUsage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-        
-        eHostUsage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-        //eHostInternalUsage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-        eHostInternalUsage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        /*enum bufferUsageFlags {
+            eDeviceUsage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
 
-        eCachedUsage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-        //eCachedInternalUsage = VK_BUFFER_USAGE_TRANSFER_DST_BIT
-        eCachedInternalUsage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
-    };*/
+            eHostUsage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+            //eHostInternalUsage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            eHostInternalUsage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
 
-    enum bufferUsageFlags {
-        eDefault = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
-    };
+            eCachedUsage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+            //eCachedInternalUsage = VK_BUFFER_USAGE_TRANSFER_DST_BIT
+            eCachedInternalUsage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+        };*/
 
-    enum memoryPropertiesFlags {
-        //eDeviceProperties = vk::MemoryPropertyFlagBits::eDeviceLocal,
-        eDeviceProperties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        enum bufferUsageFlags {
+            eDefault = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+        };
 
-        eHostProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        eHostInternalProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        
-        eCachedProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
-        eCachedInternalProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT
-    };
+        enum memoryPropertiesFlags {
+            //eDeviceProperties = vk::MemoryPropertyFlagBits::eDeviceLocal,
+            eDeviceProperties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+
+            eHostProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            eHostInternalProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+
+            eCachedProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
+            eCachedInternalProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT
+        };
+
+    } //namespace detail
 
     //
     // CUDA equivalents

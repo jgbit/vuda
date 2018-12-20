@@ -32,6 +32,9 @@ void main(void)
     float jy = scale * (dim_half - float(y)) / dim_half;
 
     vec2 c = vec2(-0.8f, -0.156f);
+    //vec2 c = vec2(-0.7269f, -0.1889f);
+    //vec2 c = vec2(-0.4, 0.6);
+    
     vec2 a = vec2(jx, jy);
 
     for(int i = 0; i < 200; ++i)

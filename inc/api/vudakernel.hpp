@@ -43,11 +43,11 @@ namespace vuda
 
         //
         // get device assigned to thread
-        const thread_info tinfo = interface_thread_info::GetThreadInfo(tid);
+        const detail::thread_info tinfo = detail::interface_thread_info::GetThreadInfo(tid);
 
         //
         // book-keeping                
-        kernel_launch_info<Ts...> kl_info(tinfo.GetLogicalDevice(), args...);
+        detail::kernel_launch_info<Ts...> kl_info(tinfo.GetLogicalDevice(), args...);
 
         //
         // add to the compute queue

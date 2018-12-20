@@ -24,7 +24,7 @@ namespace vuda
         // execute and sync with queue/stream
 
         std::thread::id tid = std::this_thread::get_id();
-        const thread_info tinfo = interface_thread_info::GetThreadInfo(tid);
+        const detail::thread_info tinfo = detail::interface_thread_info::GetThreadInfo(tid);
 
         tinfo.GetLogicalDevice()->FlushQueue(tid, stream);        
         

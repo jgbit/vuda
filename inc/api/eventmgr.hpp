@@ -8,8 +8,8 @@ namespace vuda
     /*__host__*/
     inline error_t eventCreate(event_t* event)
     {
-        std::thread::id tid = std::this_thread::get_id();
-        const thread_info tinfo = interface_thread_info::GetThreadInfo(tid);        
+        const std::thread::id tid = std::this_thread::get_id();
+        const detail::thread_info tinfo = detail::interface_thread_info::GetThreadInfo(tid);
         tinfo.GetLogicalDevice()->CreateEvent(event);
         return vudaSuccess;
     }
@@ -19,7 +19,8 @@ namespace vuda
     /*__host__ __device__*/
     inline error_t eventDestroy(event_t event)
     {
-        const thread_info tinfo = interface_thread_info::GetThreadInfo(std::this_thread::get_id());
+        const std::thread::id tid = std::this_thread::get_id();
+        const detail::thread_info tinfo = detail::interface_thread_info::GetThreadInfo(tid);
         tinfo.GetLogicalDevice()->DestroyEvent(event);
         return vudaSuccess;
     }
@@ -29,8 +30,8 @@ namespace vuda
     /*__host__*/
     inline error_t eventElapsedTime(float* ms, event_t start, event_t end)
     {
-        std::thread::id tid = std::this_thread::get_id();
-        const thread_info tinfo = interface_thread_info::GetThreadInfo(tid);
+        const std::thread::id tid = std::this_thread::get_id();
+        const detail::thread_info tinfo = detail::interface_thread_info::GetThreadInfo(tid);
         *ms = tinfo.GetLogicalDevice()->GetElapsedTimeBetweenEvents(start, end);
         return vudaSuccess;
     }        
@@ -54,8 +55,8 @@ namespace vuda
     /*__host__ __device__*/
     inline error_t eventRecord(event_t event, stream_t stream = 0)
     {
-        std::thread::id tid = std::this_thread::get_id();
-        const thread_info tinfo = interface_thread_info::GetThreadInfo(tid);        
+        const std::thread::id tid = std::this_thread::get_id();
+        const detail::thread_info tinfo = detail::interface_thread_info::GetThreadInfo(tid);
         tinfo.GetLogicalDevice()->RecordEvent(tid, event, stream);
         return vudaSuccess;
     }
@@ -65,8 +66,8 @@ namespace vuda
     //__host__
     inline error_t eventSynchronize(event_t event)
     {
-        std::thread::id tid = std::this_thread::get_id();
-        const thread_info tinfo = interface_thread_info::GetThreadInfo(tid);
+        const std::thread::id tid = std::this_thread::get_id();
+        const detail::thread_info tinfo = detail::interface_thread_info::GetThreadInfo(tid);
         tinfo.GetLogicalDevice()->FlushEvent(tid, event);
         return vudaSuccess;
     }

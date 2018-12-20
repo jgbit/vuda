@@ -12,6 +12,7 @@
 #include <shared_mutex>
 #include <atomic>
 #include <vector>
+#include <stack>
 #include <queue>
 #include <map>
 #include <unordered_map>
@@ -23,6 +24,7 @@
 #include "setup/debug.hpp"
 #include "setup/types.hpp"
 
+#include "state/pool.hpp"
 #include "state/event.hpp"
 #include "state/specialization.hpp"
 #include "state/instance.hpp"

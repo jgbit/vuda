@@ -18,15 +18,15 @@ namespace vuda
     {
         //
         // get device assigned to thread
-        const thread_info tinfo = interface_thread_info::GetThreadInfo(std::this_thread::get_id());
+        const detail::thread_info tinfo = detail::interface_thread_info::GetThreadInfo(std::this_thread::get_id());
         *device = tinfo.GetDeviceID();
-        return vudaSuccess;        
+        return vudaSuccess;
     }
 
     /* __host__ ​ __device__ */
     inline error_t getDeviceCount(int* count)
     {
-        vk::UniqueInstance& inst = Instance::get();
+        vk::UniqueInstance& inst = detail::Instance::get();
         *count = (int)inst->enumeratePhysicalDevices().size();
         return vudaSuccess;
     }
@@ -34,7 +34,7 @@ namespace vuda
     /*__host__*/
     inline error_t getDeviceProperties(deviceProp* prop, int device)
     {
-        vk::PhysicalDevice physDevice = vudaGetPhysicalDevice(device);
+        vk::PhysicalDevice physDevice = detail::vudaGetPhysicalDevice(device);
 
         vk::PhysicalDeviceProperties deviceProperties;
         physDevice.getProperties(&deviceProperties);
@@ -58,7 +58,7 @@ namespace vuda
     // __host__
     inline error_t setDevice(int device)
     {
-        vk::PhysicalDevice physDevice = vudaGetPhysicalDevice(device);
+        vk::PhysicalDevice physDevice = detail::vudaGetPhysicalDevice(device);
 
         //
         // get the QueueFamilyProperties of the PhysicalDevice
@@ -82,11 +82,11 @@ namespace vuda
 
         //
         // create or get the logical device associated with the device id
-        logical_device* logicalDevice = interface_logical_devices::create(device, deviceQueueCreateInfo, physDevice);
+        detail::logical_device* logicalDevice = detail::interface_logical_devices::create(device, deviceQueueCreateInfo, physDevice);
 
         //
         // assign this particular device to the thread
-        interface_thread_info::insert(std::this_thread::get_id(), device, logicalDevice);
+        detail::interface_thread_info::insert(std::this_thread::get_id(), device, logicalDevice);
 
         return vudaSuccess;
     }

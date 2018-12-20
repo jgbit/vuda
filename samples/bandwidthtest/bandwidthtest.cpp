@@ -71,7 +71,7 @@ void profileCopiesQuery(float *h_a, float *h_b, float *d, unsigned int n, std::s
 
     uint32_t startQueryID, stopQueryID;
     std::thread::id tid = std::this_thread::get_id();
-    const vuda::thread_info tinfo = vuda::interface_thread_info::GetThreadInfo(tid);
+    const vuda::detail::thread_info tinfo = vuda::detail::interface_thread_info::GetThreadInfo(tid);
     tinfo.GetLogicalDevice()->GetQueryID(tid, &startQueryID);
     tinfo.GetLogicalDevice()->GetQueryID(tid, &stopQueryID);
         

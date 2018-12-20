@@ -14,8 +14,8 @@ To compile a c++17 program (x64) using the VUDA library it is necessary to speci
 
 ## Running a sample
 
-Each sample accompanying the VUDA library include a simple Makefile for compilation with g++.
-Simply set the path to the sample folder and type ```make```.
+Each sample accompanying the VUDA library includes a simple Makefile for compilation with g++.
+Simply set the path to the sample folder and run ```make```.
 Additionally, some of the samples includes an equivalent cuda version (for quick comparison).
 To compile cuda source code, install the [cuda toolkit](https://developer.nvidia.com/cuda-toolkit).
 
@@ -71,6 +71,7 @@ int main(void)
 
 | Date | Changes |
 | :--- | :------ |
+| 20/12/2018 | data structure for managing descriptor set and command buffer pool allocations |
 | 25/11/2018 | Makefiles and gcc conformity |
 | 13/11/2018 | virtual alloc for local device mem, one buffer per mem alloc, vuda::events, sync memcpy conformity, bandwidthtest, julia set |
 | 25/10/2018 | memory allocator introduced: mallocHost, hostAlloc, optimized memory transfers, (comparable speeds with cuda in simple vector addition) |
