@@ -3,7 +3,7 @@
 //
 // https://stackoverflow.com/questions/142508/how-do-i-check-os-with-a-preprocessor-directive/8249232
 
-#if defined(__linux__) || defined(__unix__)
+#if defined(__linux__) || defined(__unix__) || defined(__APPLE__)
 #define PLATFORM_NAME VUDA_UNIX
 #include <unistd.h>
 #include <string.h>
