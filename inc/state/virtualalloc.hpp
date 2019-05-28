@@ -3,7 +3,7 @@
 //
 // https://stackoverflow.com/questions/142508/how-do-i-check-os-with-a-preprocessor-directive/8249232
 
-#if defined(__linux__) || defined(__unix__)
+#if defined(__linux__) || defined(__unix__) || defined(__APPLE__)
 #define PLATFORM_NAME VUDA_LINUX
 #include <unistd.h>
 #include <string.h>
@@ -94,9 +94,15 @@ namespace vuda
         inline std::string get_errno(void)
         {
             char buffer[256];
+            #if defined(__linux__)
+            // getting a char* from strerror_r is linux-specific
             char * errorMessage = strerror_r(errno, buffer, 256); // get string message from errno
-
             return errorMessage;
+            #else
+            // for non-linux (darwin, bsd, etc), use this version:
+            strerror_r(errno, buffer, 256); // get string message from errno
+            return buffer;
+            #endif
         }
 
         inline void* VirtAlloc(size_t size, size_t& allocSize)
