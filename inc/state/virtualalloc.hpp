@@ -4,7 +4,7 @@
 // https://stackoverflow.com/questions/142508/how-do-i-check-os-with-a-preprocessor-directive/8249232
 
 #if defined(__linux__) || defined(__unix__)
-#define PLATFORM_NAME VUDA_LINUX
+#define PLATFORM_NAME VUDA_UNIX
 #include <unistd.h>
 #include <string.h>
 #include <sys/mman.h>
@@ -84,7 +84,7 @@ namespace vuda
             return ret;
         }
 
-#elif(PLATFORM_NAME == VUDA_LINUX)
+#elif(PLATFORM_NAME == VUDA_UNIX)
 
         /*            
             https://linux.die.net/man/2/mmap
