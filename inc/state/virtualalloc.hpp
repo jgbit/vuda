@@ -94,9 +94,12 @@ namespace vuda
         inline std::string get_errno(void)
         {
             char buffer[256];
-            char * errorMessage = strerror_r(errno, buffer, 256); // get string message from errno
-
-            return errorMessage;
+            if (errno < sys_nerr){
+                snprintf(buffer, 256, "%s", sys_errlist[errno]);
+            }else{
+                snprintf(buffer, 256, "Unknown error %d", errno);
+            }
+            return buffer;
         }
 
         inline void* VirtAlloc(size_t size, size_t& allocSize)
