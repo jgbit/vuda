@@ -3,8 +3,8 @@
 //
 // https://stackoverflow.com/questions/142508/how-do-i-check-os-with-a-preprocessor-directive/8249232
 
-#if defined(__linux__) || defined(__unix__)
-#define PLATFORM_NAME VUDA_LINUX
+#if defined(__linux__) || defined(__unix__) || defined(__APPLE__)
+#define PLATFORM_NAME VUDA_UNIX
 #include <unistd.h>
 #include <string.h>
 #include <sys/mman.h>
@@ -84,7 +84,7 @@ namespace vuda
             return ret;
         }
 
-#elif(PLATFORM_NAME == VUDA_LINUX)
+#elif(PLATFORM_NAME == VUDA_UNIX)
 
         /*            
             https://linux.die.net/man/2/mmap
@@ -94,9 +94,12 @@ namespace vuda
         inline std::string get_errno(void)
         {
             char buffer[256];
-            char * errorMessage = strerror_r(errno, buffer, 256); // get string message from errno
-
-            return errorMessage;
+            if (errno < sys_nerr){
+                snprintf(buffer, 256, "%s", sys_errlist[errno]);
+            }else{
+                snprintf(buffer, 256, "Unknown error %d", errno);
+            }
+            return buffer;
         }
 
         inline void* VirtAlloc(size_t size, size_t& allocSize)

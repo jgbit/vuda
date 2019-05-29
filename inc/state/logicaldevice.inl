@@ -358,7 +358,7 @@ namespace vuda
 
             while(true)
             {
-                kernelprogram<specials.m_bytesize>* kernel = nullptr;
+                kernelprogram<specialization<specialTypes...>::m_bytesize>* kernel = nullptr;
                 std::vector<std::shared_ptr<kernel_interface>>::iterator it;
 
                 //
@@ -373,7 +373,7 @@ namespace vuda
 
                     if(it != m_kernels.end())
                     {
-                        kernel = static_cast<kernelprogram<specials.m_bytesize>*>((*it).get());
+                        kernel = static_cast<kernelprogram<specialization<specialTypes...>::m_bytesize>*>((*it).get());
 
                         //
                         // every thread can look up its command pool in the list
@@ -382,7 +382,7 @@ namespace vuda
 
                         //
                         // update descriptor and command buffer            
-                        pool->UpdateDescriptorAndCommandBuffer<specials.m_bytesize, specialTypes...>(m_device, *kernel, specials, bufferDescriptors, blocks, stream);
+                        pool->UpdateDescriptorAndCommandBuffer<specialization<specialTypes...>::m_bytesize, specialTypes...>(m_device, *kernel, specials, bufferDescriptors, blocks, stream);
 
                         return;
                     }
@@ -396,7 +396,7 @@ namespace vuda
                 {
                     std::unique_lock<std::shared_mutex> lck(*m_mtxKernels);
 
-                    m_kernels.push_back(std::make_unique<kernelprogram<specials.m_bytesize>>(m_device, filename, entry, bindings, specials));
+                    m_kernels.push_back(std::make_unique<kernelprogram<specialization<specialTypes...>::m_bytesize>>(m_device, filename, entry, bindings, specials));
                     it = std::prev(m_kernels.end());
 
                     /*std::stringstream ostr;
