@@ -21,8 +21,9 @@
 #include <tuple>
 #include <chrono>
 
-#include "setup/debug.hpp"
+#include "state/singleton.hpp"
 #include "setup/types.hpp"
+#include "setup/debug.hpp"
 
 #include "state/pool.hpp"
 #include "state/event.hpp"

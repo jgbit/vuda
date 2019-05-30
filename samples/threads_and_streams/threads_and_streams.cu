@@ -8,8 +8,7 @@
 #include <cuda_runtime.h>
 #include "../tools/timer.hpp"
 
-__global__ void
-vectorAdd(const int *a, const int *b, int *c, int N)
+__global__ void vectorAdd(const int *a, const int *b, int *c, int N)
 {
     int tid = blockDim.x * blockIdx.x + threadIdx.x;
 

@@ -3,8 +3,8 @@
 //
 // https://stackoverflow.com/questions/142508/how-do-i-check-os-with-a-preprocessor-directive/8249232
 
-#if defined(__linux__) || defined(__unix__)
-#define PLATFORM_NAME VUDA_LINUX
+#if defined(__linux__) || defined(__unix__) || defined(__APPLE__)
+#define PLATFORM_NAME VUDA_UNIX
 #include <unistd.h>
 #include <string.h>
 #include <sys/mman.h>
@@ -84,19 +84,28 @@ namespace vuda
             return ret;
         }
 
-#elif(PLATFORM_NAME == VUDA_LINUX)
+#elif(PLATFORM_NAME == VUDA_UNIX)
 
         /*            
             https://linux.die.net/man/2/mmap
             http://man7.org/linux/man-pages/man2/mmap.2.html
         */
-
+        
         inline std::string get_errno(void)
         {
-            char buffer[256];
-            char * errorMessage = strerror_r(errno, buffer, 256); // get string message from errno
+            const size_t buflen = 1024;
+            char buf[buflen];
+            
+            // replacement for strerror_r
+            // http://www.club.cc.cmu.edu/~cmccabe/blog_strerror.html
+            // char * errorMessage = strerror_r(errno, buffer, buflen); // get string message from errno
 
-            return errorMessage;
+            if(errno < sys_nerr)
+                snprintf(buf, buflen, "%s", sys_errlist[errno]);
+            else
+                snprintf(buf, buflen, "Unknown error %d", errno);
+
+            return buf;
         }
 
         inline void* VirtAlloc(size_t size, size_t& allocSize)
@@ -120,7 +129,7 @@ namespace vuda
             int ret = munmap(addr, length);
 
             if(ret == -1)
-                std::cout << "reservation failed with: " << get_errno() << std::endl;
+                std::cout << "failed to free virtual memory with error: " << get_errno() << std::endl;
 
             return 1;
         }

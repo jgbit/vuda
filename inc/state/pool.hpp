@@ -5,13 +5,16 @@ namespace vuda
     namespace detail
     {
 
+        /*
+            default pool node
+        */
         template<size_t capacity, typename T>
         class default_pool_allocator
         {
         public:
 
             default_pool_allocator() :
-                m_next(nullptr)                
+                m_next(nullptr)
             {
                 init();
             }
@@ -27,7 +30,7 @@ namespace vuda
 
             default_pool_allocator* get_next()
             {
-                return m_next;               
+                return m_next;
             }
 
             size_t return_element(void) const
@@ -41,7 +44,7 @@ namespace vuda
             }
 
             //
-            // functionality            
+            // functionality
             virtual T get(uint32_t index) const = 0;
             virtual void reset(void) = 0;
 
@@ -52,6 +55,9 @@ namespace vuda
             mutable std::atomic<size_t> m_returned;
         };
 
+        /*
+            descriptor set pool node
+        */
         template<size_t capacity, typename T>
         class descriptor_pool_allocator : public default_pool_allocator<capacity, T>
         {
@@ -100,6 +106,119 @@ namespace vuda
         };
 
         /*
+            command buffer pool node
+        */
+        template<size_t capacity, typename T>
+        class commandbuffer_pool_allocator : public default_pool_allocator<capacity, T>
+        {
+        public:
+
+            commandbuffer_pool_allocator(vk::Device device, uint32_t queueFamilyIndex) :
+                m_device(device),
+                // allocate pool
+                m_commandPool(device.createCommandPool(vk::CommandPoolCreateInfo(vk::CommandPoolCreateFlags(), queueFamilyIndex))),
+                // allocate buffers
+                m_commandBuffers(device.allocateCommandBuffers(vk::CommandBufferAllocateInfo(m_commandPool, vk::CommandBufferLevel::ePrimary, (uint32_t)capacity)))
+            {
+                
+            }
+
+            ~commandbuffer_pool_allocator()
+            {
+                m_device.destroyCommandPool(m_commandPool);                
+            }
+
+            T get(uint32_t index) const
+            {
+                return m_commandBuffers[index];
+            }
+
+            void reset(void)
+            {
+                m_device.resetCommandPool(m_commandPool, vk::CommandPoolResetFlags());
+            }
+
+        private:
+            vk::Device m_device;
+
+            vk::CommandPool m_commandPool;
+            std::vector<vk::CommandBuffer> m_commandBuffers;
+        };
+
+        /*
+            {command buffer, fence, descriptor usage} pool node
+        */
+        template<size_t capacity, typename T>
+        class thrdcb_pool_allocator : public default_pool_allocator<capacity, T>
+        {
+        public:
+
+            thrdcb_pool_allocator(vk::Device device, uint32_t queueFamilyIndex) :
+                m_device(device),
+                // allocate pool
+                m_commandPool(device.createCommandPool(vk::CommandPoolCreateInfo(vk::CommandPoolCreateFlags(), queueFamilyIndex))),
+                // allocate command buffer ext
+                m_cbext(command_buffer_ext(device, m_commandPool), capacity)
+            {
+            }
+
+            ~thrdcb_pool_allocator()
+            {
+                m_device.destroyCommandPool(m_commandPool);
+                for(size_t i = 0; i < capacity; ++i)
+                    m_cbext[i].destroyfence(m_device);
+            }
+
+            T get(uint32_t index) const
+            {
+                return m_cbext[index];
+            }
+
+            void reset(void)
+            {
+                m_device.resetCommandPool(m_commandPool, vk::CommandPoolResetFlags());
+                // reset cmd buf ext
+                for(size_t i = 0; i < capacity; ++i)
+                    m_cbext[i].reset();
+            }
+
+        private:
+            struct command_buffer_ext
+            {
+            public:
+                command_buffer_ext(vk::Device device, vk::CommandPool cmdpool) :
+                    m_fence(device.createFence(vk::FenceCreateFlags())),
+                    m_commandBuffer(device.allocateCommandBuffers(vk::CommandBufferAllocateInfo(cmdpool, vk::CommandBufferLevel::ePrimary, 1))),
+                    pool_id(nullptr)
+                {}
+
+                // note there are no destructor as that would require to store device,
+                // it is up to thrdcb_pool_allocator to destroy the fence allocation on cleanup
+                void destroyfence(vk::Device device)
+                {
+                    device.destroyFence(m_fence);
+                }
+
+                void reset(vk::Device device)
+                {
+                    pool_id = nullptr;
+                    device.resetFences(1, &m_fence);
+                }
+
+            private:
+
+                vk::Fence m_fence;
+                vk::CommandBuffer m_commandBuffer;
+                descriptor_pool_allocator<VUDA_NUM_KERNEL_DESCRIPTOR_SETS, vk::DescriptorSet>* pool_id;
+            };
+
+        private:
+            vk::Device m_device;
+            vk::CommandPool m_commandPool;
+            std::vector<command_buffer_ext> m_cbext;
+        };
+
+        /*
             (thread-safe) pool containing sets of finite elements.
             - a set is allocated when the current one has used up all its elements
             - when elements are returned they are not recycled until all elements in the set has been returned.
@@ -130,7 +249,9 @@ namespace vuda
                 m_last_set(&m_first_set)                
             {
                 /*if(m_maxsets < 1)
-                    throw std::invalid_argument("max set size must be at least 1.");*/                
+                    throw std::invalid_argument("max set size must be at least 1.");*/
+
+                //std::function<T_alloc()> func = [&](Ts... args) { return T_alloc(args...); };
             }
             
             ~pool_finite_sets()

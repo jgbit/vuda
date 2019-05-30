@@ -7,7 +7,7 @@ namespace vuda
         //
         // singleton vulkan instance class
         //
-        class Instance final
+        class Instance final : public singleton
         {
         private:
 
@@ -75,9 +75,11 @@ namespace vuda
                     debug_initialized.store(true);
                 }
 
-                // simple spin lock make sure that debug layer has been initialized
+                // a simple spin lock make sure that debug layer has been initialized
                 while(debug_initialized.load() == false)
-                    ;
+                {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                }                    
 
                 return local_instance;
             }
@@ -112,7 +114,7 @@ namespace vuda
 
     #endif
 
-        private:
+        /*private:
             Instance() = default;
             ~Instance() = default;
 
@@ -120,8 +122,7 @@ namespace vuda
             Instance(Instance const&) = delete;             // Copy construct
             Instance(Instance&&) = delete;                  // Move construct
             Instance& operator=(Instance const&) = delete;  // Copy assign
-            Instance& operator=(Instance &&) = delete;      // Move assign
-
+            Instance& operator=(Instance &&) = delete;      // Move assign*/
         };
 
     } //namespace detail

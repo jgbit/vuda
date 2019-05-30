@@ -58,6 +58,8 @@ namespace vuda
     {
         uint32_t x, y, z;
 
+        dim3(void) : x(1), y(1), z(1)
+        {}
         dim3(const uint32_t x) : x(x), y(1), z(1)
         {}
         dim3(const uint32_t x, const uint32_t y) : x(x), y(y), z(1)

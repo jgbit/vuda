@@ -409,7 +409,7 @@ int main(int argc, char *argv[])
     if(test_runs[testid])
         Test::Launch(test_names[testid], 1, N, &Test::SingleThreadSingleStreamExample);
     
-    //
+    /*//
     // single device, single thread, multiple streams
     testid = 1;
     if(test_runs[testid])
@@ -419,7 +419,7 @@ int main(int argc, char *argv[])
     // single device, multiple threads, multiple streams
     testid = 2;
     if(test_runs[testid])
-        Test::Launch(test_names[testid], 8, N, &Test::MultipleThreadsMultipleStreamsExample);
+        Test::Launch(test_names[testid], 8, N, &Test::MultipleThreadsMultipleStreamsExample);*/
     
     
     /*std::cout << "done" << std::endl;

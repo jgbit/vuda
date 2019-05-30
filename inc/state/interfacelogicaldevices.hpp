@@ -4,11 +4,10 @@ namespace vuda
 {
     namespace detail
     {
-
         //
         // singleton interface for vulkan logical devices
         //
-        class interface_logical_devices final
+        class interface_logical_devices final : public singleton
         {
         public:
 
@@ -55,7 +54,7 @@ namespace vuda
                 return local_mtx;
             }
 
-        private:
+        /*private:
             interface_logical_devices() = default;
             ~interface_logical_devices() = default;
 
@@ -63,7 +62,7 @@ namespace vuda
             interface_logical_devices(interface_logical_devices const&) = delete;             // Copy construct
             interface_logical_devices(interface_logical_devices&&) = delete;                  // Move construct
             interface_logical_devices& operator=(interface_logical_devices const&) = delete;  // Copy assign
-            interface_logical_devices& operator=(interface_logical_devices &&) = delete;      // Move assign
+            interface_logical_devices& operator=(interface_logical_devices &&) = delete;      // Move assign*/
 
         };
 

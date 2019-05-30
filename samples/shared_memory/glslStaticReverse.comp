@@ -1,0 +1,28 @@
+#version 450 core
+
+//
+// block size
+layout( local_size_x_id = 0 ) in;
+
+//
+// size of vector defined by a specialization constant
+layout( constant_id = 1 ) const uint n = 100;
+
+//
+// resources
+layout(set = 0, binding = 0) buffer D { int d[]; };
+
+//
+// shared resources
+shared int s[n];
+
+void main(void)
+{    
+    uint t = gl_LocalInvocationID.x; // threadIdx.x
+    uint tr = n - t - 1;
+    s[t] = d[t];
+
+    barrier(); //__syncthreads();
+
+    d[t] = s[tr];    
+}
