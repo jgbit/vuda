@@ -413,7 +413,7 @@ namespace vuda
 
             //
             //
-            std::vector< std::unique_ptr<std::atomic<bool>>> m_creation_locks;
+            std::vector<std::unique_ptr<std::atomic<bool>>> m_creation_locks;
             std::vector<std::unique_ptr<std::shared_mutex>> m_mtxTypeChunks;
             std::vector<std::vector<memory_chunk>> m_type_chunks;
 
