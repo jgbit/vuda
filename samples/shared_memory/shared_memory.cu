@@ -41,23 +41,22 @@ int main(void)
 
     // run version with static shared memory
     cudaMemcpy(d_d, a, n * sizeof(int), cudaMemcpyHostToDevice);
-    //staticReverse << <1, n >> > (d_d, n);
-    void* args[] = { (void*)&d_d, (void*)&n };
-    cudaLaunchKernel(staticReverse, dim3(1), dim3(n), args, 0, 0);
+    staticReverse << <1, n >> > (d_d, n);
+    //void* args[] = { (void*)&d_d, (void*)&n };
+    //cudaLaunchKernel(staticReverse, dim3(1), dim3(n), args, 0, 0);
     cudaMemcpy(d, d_d, n * sizeof(int), cudaMemcpyDeviceToHost);
     for(int i = 0; i < n; i++)
         if(d[i] != r[i]) printf("Error: d[%d]!=r[%d] (%d, %d)n", i, i, d[i], r[i]);
 
     // run dynamic shared memory version
     cudaMemcpy(d_d, a, n * sizeof(int), cudaMemcpyHostToDevice);
-    //dynamicReverse << <1, n, n * sizeof(int) >> > (d_d, n);
-    cudaLaunchKernel(dynamicReverse, dim3(1), dim3(n), args, n * sizeof(int), 0);
+    dynamicReverse << <1, n, n * sizeof(int) >> > (d_d, n);
+    //cudaLaunchKernel(dynamicReverse, dim3(1), dim3(n), args, n * sizeof(int), 0);
     cudaMemcpy(d, d_d, n * sizeof(int), cudaMemcpyDeviceToHost);
     for(int i = 0; i < n; i++)
         if(d[i] != r[i]) printf("Error: d[%d]!=r[%d] (%d, %d)n", i, i, d[i], r[i]);
 
     cudaFree(d_d);
-    printf("done.\n");
-    system("pause");
+    printf("done.\n");    
     return 0;
 }

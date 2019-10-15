@@ -60,7 +60,7 @@ namespace vuda
                 public synchronized interface
             */
 
-            void SetEvent(const vk::UniqueDevice& device, const event_t event, const stream_t stream)
+            void SetEvent(const vk::UniqueDevice& device, const event_t event, const stream_t stream) const
             {
                 //
                 // lock access to the streams commandbuffer
@@ -185,7 +185,7 @@ namespace vuda
             }
 
             template <size_t specializationByteSize, typename... specialTypes>
-            void UpdateDescriptorAndCommandBuffer(const vk::UniqueDevice& device, const kernelprogram<specializationByteSize>& kernel, specialization<specialTypes...>& specials, const std::vector<vk::DescriptorBufferInfo>& bufferDescriptors, const dim3 blocks, const uint32_t stream)
+            void UpdateDescriptorAndCommandBuffer(const vk::UniqueDevice& device, const kernelprogram<specializationByteSize>& kernel, specialization<specialTypes...>& specials, const std::vector<vk::DescriptorBufferInfo>& bufferDescriptors, const dim3 blocks, const uint32_t stream) const
             {
                 //
                 // lock access to the streams commandbuffer
@@ -343,7 +343,7 @@ namespace vuda
                     m_commandBuffers[stream]->end();
 
                     //
-                    // submit program to compute queue
+                    // submit command buffer to compute queue
                     /*
                     https://www.khronos.org/registry/vulkan/specs/1.1-extensions/man/html/vkQueueSubmit.html
                     Each element of the pCommandBuffers member of each element of pSubmits must have been allocated from a VkCommandPool that was created for the same queue family queue belongs to.

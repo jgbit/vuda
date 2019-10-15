@@ -15,10 +15,14 @@ namespace vuda
             {
                 static vk::ApplicationInfo info("VUDA", 1, "vuda.hpp", 1, VK_API_VERSION_1_1);
                 return info;
+            }            
+
+            static std::vector<vk::PhysicalDevice>& GetPhysicalDevices(void)
+            {
+                static std::vector<vk::PhysicalDevice> physicalDevices = Instance::get()->enumeratePhysicalDevices();
+                return physicalDevices;
             }
-
-        public:
-
+        
     #ifndef VUDA_STD_LAYER_ENABLED
 
             static vk::UniqueInstance& get(void)
@@ -33,12 +37,6 @@ namespace vuda
             {
                 static std::vector<const char*> extensions = { VK_EXT_DEBUG_UTILS_EXTENSION_NAME };
                 return extensions;
-            }
-
-            static std::vector<const char*>& getValidationLayers(void)
-            {
-                static std::vector<const char*> validationLayers = { "VK_LAYER_LUNARG_standard_validation" };
-                return validationLayers;
             }
 
             static vk::DispatchLoaderDynamic& getDispatchLoaderDynamic(const vk::UniqueInstance& instance)
@@ -90,8 +88,6 @@ namespace vuda
                 vk::debug::messageType = messageType;
             }*/
 
-        private:
-
             static void SetupDebugCallback(const vk::UniqueInstance& instance)
             {
                 //
@@ -110,19 +106,28 @@ namespace vuda
                 }
             }
 
-        private:
+        public:
 
-    #endif
+            static std::vector<const char*>& getValidationLayers(void)
+            {
+                static std::vector<const char*> validationLayers = { "VK_LAYER_LUNARG_standard_validation" };
+                return validationLayers;
+            }
+    #endif        
 
-        /*private:
-            Instance() = default;
-            ~Instance() = default;
+        public:
 
-            // delete copy and move constructors and assign operators
-            Instance(Instance const&) = delete;             // Copy construct
-            Instance(Instance&&) = delete;                  // Move construct
-            Instance& operator=(Instance const&) = delete;  // Copy assign
-            Instance& operator=(Instance &&) = delete;      // Move assign*/
+            static size_t GetPhysicalDeviceCount(void)
+            {
+                return GetPhysicalDevices().size();
+            }
+
+            static vk::PhysicalDevice GetPhysicalDevice(const int device)
+            {
+                assert(device >= 0 && device < (int)GetPhysicalDevices().size());
+                return GetPhysicalDevices()[device];
+            }
+        
         };
 
     } //namespace detail

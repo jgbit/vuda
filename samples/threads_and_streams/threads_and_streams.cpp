@@ -38,6 +38,7 @@ int Test::SingleThreadSingleStreamExample(const int tid, const int nthreads, con
         const int stream_id = 0;
         const int blocks = 128;
         const int threads = 128;
+        const int bytesize = N * sizeof(int);
 
 #ifdef THREAD_VERBOSE_OUTPUT
         std::ostringstream ostr;
@@ -47,18 +48,18 @@ int Test::SingleThreadSingleStreamExample(const int tid, const int nthreads, con
         ostr.str("");
 #endif
 
-        int *dev_a = 0, *dev_b, *dev_c;
+        int *dev_a = 0, *dev_b = 0, *dev_c = 0;
 
         //
-        // allocate memory on the device        
-        vuda::malloc((void**)&dev_a, N * sizeof(int));
-        vuda::malloc((void**)&dev_b, N * sizeof(int));
-        vuda::malloc((void**)&dev_c, N * sizeof(int));
+        // allocate memory on the device
+        vuda::malloc((void**)&dev_a, bytesize);
+        vuda::malloc((void**)&dev_b, bytesize);
+        vuda::malloc((void**)&dev_c, bytesize);
 
         //
         // copy the arrays a and b to the device
-        vuda::memcpy(dev_a, a, N * sizeof(int), vuda::memcpyHostToDevice);
-        vuda::memcpy(dev_b, b, N * sizeof(int), vuda::memcpyHostToDevice);
+        vuda::memcpy(dev_a, a, bytesize, vuda::memcpyHostToDevice);
+        vuda::memcpy(dev_b, b, bytesize, vuda::memcpyHostToDevice);
 
         //
         // run kernel                
@@ -66,7 +67,7 @@ int Test::SingleThreadSingleStreamExample(const int tid, const int nthreads, con
 
         //
         // copy result to host
-        vuda::memcpy(c, dev_c, N * sizeof(int), vuda::memcpyDeviceToHost);
+        vuda::memcpy(c, dev_c, bytesize, vuda::memcpyDeviceToHost);
 
         //
         // display results
@@ -237,13 +238,14 @@ int Test::MultipleThreadsMultipleStreamsExample(const int tid, const int nthread
 
         //
         // allocate memory on the device
-        vuda::malloc((void**)&dev_a, N * sizeof(int));
-        vuda::malloc((void**)&dev_b, N * sizeof(int));
-        vuda::malloc((void**)&dev_c, N * sizeof(int));
+        const int bytesize = N * sizeof(int);
+        vuda::malloc((void**)&dev_a, bytesize);
+        vuda::malloc((void**)&dev_b, bytesize);
+        vuda::malloc((void**)&dev_c, bytesize);
 
         // copy the arrays a and b to the device
-        vuda::memcpy(dev_a, a + tid * N, N * sizeof(int), vuda::memcpyHostToDevice, stream_id);        
-        vuda::memcpy(dev_b, b + tid * N, N * sizeof(int), vuda::memcpyHostToDevice, stream_id);
+        vuda::memcpy(dev_a, a + tid * N, bytesize, vuda::memcpyHostToDevice, stream_id);
+        vuda::memcpy(dev_b, b + tid * N, bytesize, vuda::memcpyHostToDevice, stream_id);
         
         //
         // run kernel
@@ -255,7 +257,7 @@ int Test::MultipleThreadsMultipleStreamsExample(const int tid, const int nthread
 
         //
         // copy result to host
-        vuda::memcpy(c + tid * N, dev_c, N * sizeof(int), vuda::memcpyDeviceToHost, stream_id);
+        vuda::memcpy(c + tid * N, dev_c, bytesize, vuda::memcpyDeviceToHost, stream_id);
 
         //
         // free memory on device
@@ -333,7 +335,7 @@ void Test::Launch(std::string name, const int num_threads, const unsigned int N,
     std::cout << std::string(name.length(), '=') << std::endl;
 
     // 
-    // WARM UP AND POTENTIAL HACK TO AVOID RACE CONDITION IN ACCESSING PHYSICAL DEVICES
+    // warm up, pre-create the logical devices
     int deviceCount;
     vuda::getDeviceCount(&deviceCount);
     for(int deviceID = 0; deviceID < deviceCount; ++deviceID)
@@ -357,6 +359,7 @@ void Test::Launch(std::string name, const int num_threads, const unsigned int N,
         double elapsed = timer.toc();
         std::cout << "run: " << run << ", runtime: " << elapsed << "s" << std::endl;
 
+        // exclude the first run (as kernel and memory will be allocated)
         if(run > 0)
             totalElapsedTime += elapsed;
 
@@ -409,7 +412,7 @@ int main(int argc, char *argv[])
     if(test_runs[testid])
         Test::Launch(test_names[testid], 1, N, &Test::SingleThreadSingleStreamExample);
     
-    /*//
+    //
     // single device, single thread, multiple streams
     testid = 1;
     if(test_runs[testid])
@@ -419,10 +422,11 @@ int main(int argc, char *argv[])
     // single device, multiple threads, multiple streams
     testid = 2;
     if(test_runs[testid])
-        Test::Launch(test_names[testid], 8, N, &Test::MultipleThreadsMultipleStreamsExample);*/
+        Test::Launch(test_names[testid], 8, N, &Test::MultipleThreadsMultipleStreamsExample);
     
-    
-    /*std::cout << "done" << std::endl;
-    std::cin.get();*/
+#ifndef NDEBUG    
+    std::cout << "done." << std::endl;
+    std::cin.get();
+#endif
     return EXIT_SUCCESS;
 }

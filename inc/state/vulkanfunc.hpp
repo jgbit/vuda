@@ -6,23 +6,8 @@ namespace vuda
     {
 
         /*
-            specific retrieve functions that extends the cuda interface starts with vuda
+            specific retrieve functions that extends the cuda interface starts with vuda        
         */
-        inline vk::PhysicalDevice vudaGetPhysicalDevice(int device)
-        {
-            // in C++11 standard library const means thread-safe
-            std::vector<vk::PhysicalDevice> physicalDevices = Instance::get()->enumeratePhysicalDevices();
-
-            assert(device >= 0 && device < (int)physicalDevices.size());
-
-            /*if(device < 0 && device >= physicalDevices.size())
-            {
-                std::string errstr("Failed to find physical device!" + device);
-                throw std::runtime_error(errstr);
-            }*/
-
-            return physicalDevices[device];
-        }
 
         /*
             https://www.khronos.org/registry/vulkan/specs/1.1-extensions/man/html/VkPhysicalDeviceMemoryProperties.html

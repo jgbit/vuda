@@ -16,16 +16,17 @@ namespace vuda
             m_commandPool(m_device->createCommandPoolUnique(vk::CommandPoolCreateInfo(vk::CommandPoolCreateFlags(vk::CommandPoolCreateFlagBits::eResetCommandBuffer), m_queueFamilyIndex))),
             m_commandBuffers(m_device->allocateCommandBuffersUnique(vk::CommandBufferAllocateInfo(m_commandPool.get(), vk::CommandBufferLevel::ePrimary, m_queueComputeCount))),
             m_commandBufferState(m_queueComputeCount, cbReset)*/
-            m_storageBST_root(nullptr),        
-                m_allocator(physDevice, m_device.get(), findDeviceLocalMemorySize(physDevice) / 16)
-                /*m_allocatorDevice(physDevice, m_device.get(), false, m_memoryAllocatorTypes.at(vuda::bufferPropertiesFlags::eDeviceProperties), findDeviceLocalMemorySize(physDevice) / 16),
-                m_allocatorHost(physDevice, m_device.get(), true, m_memoryAllocatorTypes.at(vuda::bufferPropertiesFlags::eHostProperties), findDeviceLocalMemorySize(physDevice) / 16),
-                m_allocatorCached(physDevice, m_device.get(), true, m_memoryAllocatorTypes.at(vuda::bufferPropertiesFlags::eCachedProperties), findDeviceLocalMemorySize(physDevice) / 16)*/
+            m_storageBST_root(nullptr),
+            m_allocator(physDevice, m_device.get()) // findDeviceLocalMemorySize(physDevice) / 16
         {
             // device allocator     : device local mem type
             // host allocator       : host local mem type
             // cached allocator     : suitable for stage buffers for device to host transfers
             // ...                  : suitable for stage buffers for host to device transfers        
+            
+            /*m_allocatorDevice(physDevice, m_device.get(), false, m_memoryAllocatorTypes.at(vuda::bufferPropertiesFlags::eDeviceProperties), findDeviceLocalMemorySize(physDevice) / 16),
+            m_allocatorHost(physDevice, m_device.get(), true, m_memoryAllocatorTypes.at(vuda::bufferPropertiesFlags::eHostProperties), findDeviceLocalMemorySize(physDevice) / 16),
+            m_allocatorCached(physDevice, m_device.get(), true, m_memoryAllocatorTypes.at(vuda::bufferPropertiesFlags::eCachedProperties), findDeviceLocalMemorySize(physDevice) / 16)*/
 
             //
             // retrieve timestampPeriod
@@ -83,7 +84,7 @@ namespace vuda
 
         inline void logical_device::CreateEvent(event_t* event)
         {
-            std::unique_lock<std::shared_mutex> lck(*m_mtxEvents);
+            std::lock_guard<std::shared_mutex> lck(*m_mtxEvents);
 
             *event = m_device->createEvent(vk::EventCreateInfo());
             m_events.emplace(*event, event_tick());
@@ -91,7 +92,7 @@ namespace vuda
 
         inline void logical_device::DestroyEvent(const event_t event)
         {
-            std::unique_lock<std::shared_mutex> lck(*m_mtxEvents);
+            std::lock_guard<std::shared_mutex> lck(*m_mtxEvents);
 
             //
             // force a flush of the the command buffer before destroying the event
@@ -108,7 +109,7 @@ namespace vuda
             //
             // record timestamp host side
             {
-                std::unique_lock<std::shared_mutex> lck(*m_mtxEvents);
+                std::lock_guard<std::shared_mutex> lck(*m_mtxEvents);
 
                 event_tick& ref = m_events.at(event);
                 ref.set_stream(stream);
@@ -119,7 +120,8 @@ namespace vuda
             // every thread can look up its command pool in the list
             {
                 std::shared_lock<std::shared_mutex> lckCmdPools(*m_mtxCmdPools);
-                thrdcmdpool* pool = &m_thrdCommandPools.at(tid);
+
+                const thrdcmdpool* pool = &m_thrdCommandPools.at(tid);
                 pool->SetEvent(m_device, event, stream);
             }
         }
@@ -148,7 +150,7 @@ namespace vuda
             // every thread can look up its command pool in the list
             {
                 std::shared_lock<std::shared_mutex> lckCmdPools(*m_mtxCmdPools);
-                const thrdcmdpool* pool = &m_thrdCommandPools.at(tid);
+                const thrdcmdpool* pool = &m_thrdCommandPools.at(tid);                
                 *event = pool->GetQueryID();
             }
         }
@@ -159,7 +161,7 @@ namespace vuda
             // every thread can look up its command pool in the list
             {
                 std::shared_lock<std::shared_mutex> lckCmdPools(*m_mtxCmdPools);
-                const thrdcmdpool* pool = &m_thrdCommandPools.at(tid);
+                const thrdcmdpool* pool = &m_thrdCommandPools.at(tid);                
                         
                 pool->WriteTimeStamp(m_device, event, stream);
             }
@@ -174,9 +176,9 @@ namespace vuda
             {
                 std::shared_lock<std::shared_mutex> lckCmdPools(*m_mtxCmdPools);
                 const thrdcmdpool* pool = &m_thrdCommandPools.at(tid);
-
+                
                 uint64_t ticks0 = pool->GetQueryPoolResults(m_device, startQuery);
-                uint64_t ticks1 = pool->GetQueryPoolResults(m_device, stopQuery);            
+                uint64_t ticks1 = pool->GetQueryPoolResults(m_device, stopQuery);
 
                 ticks = ticks1 - ticks0;
             }
@@ -221,10 +223,14 @@ namespace vuda
 
             //
             // make sure we have a staging buffer of equal size
-            // [ for now each device buffer is backed by equal size buffers, this is not very economical to say the least ]
+            // [ for now each device buffer is backed by equal sized buffers, this is not very economical to say the least ]
             // [ for concurrent transfers we want to have sufficient pre-allocation, but we dont want to overcommit as the current implementation ]
-            m_pinnedBuffers.create_buffer(size, m_allocator);
-            m_cachedBuffers.create_buffer(size, m_allocator);
+            //m_pinnedBuffers.create_buffer(size, m_allocator);
+            //m_cachedBuffers.create_buffer(size, m_allocator);
+            host_pinned_node_internal* stage_ptr = m_pinnedBuffers.get_buffer(size, m_allocator);
+            stage_ptr->set_free();
+            host_cached_node_internal* dstptr = m_cachedBuffers.get_buffer(size, m_allocator);
+            dstptr->set_free();
         }
 
         inline void logical_device::mallocHost(void** ptr, size_t size)
@@ -259,7 +265,7 @@ namespace vuda
 
         inline void logical_device::free(void* devPtr)
         {
-            std::unique_lock<std::shared_mutex> lck(*m_mtxResources);
+            std::lock_guard<std::shared_mutex> lck(*m_mtxResources);
 
             /*std::ostringstream ostr;
             //ostr << std::this_thread::get_id() << ": took lock" << std::endl;
@@ -377,12 +383,21 @@ namespace vuda
 
                         //
                         // every thread can look up its command pool in the list
-                        std::shared_lock<std::shared_mutex> lckCmdPools(*m_mtxCmdPools);
-                        thrdcmdpool *pool = &m_thrdCommandPools.at(tid);
+                        std::shared_lock<std::shared_mutex> lckCmdPools(*m_mtxCmdPools);                        
+                        const thrdcmdpool *pool = &m_thrdCommandPools.at(tid);
 
                         //
-                        // update descriptor and command buffer            
+                        // 1. record command buffer: update descriptor and command buffer            
                         pool->UpdateDescriptorAndCommandBuffer<specialization<specialTypes...>::m_bytesize, specialTypes...>(m_device, *kernel, specials, bufferDescriptors, blocks, stream);
+
+                        //
+                        // lock queue
+                        std::lock_guard<std::mutex> lckQueues(*m_mtxQueues[stream]);
+                        vk::Queue q = m_queues.at(stream);
+
+                        //
+                        // 2. submit kernel, kernel launches are asynchronous with respect to the host.
+                        pool->Execute(m_device, q, stream);
 
                         return;
                     }
@@ -394,7 +409,7 @@ namespace vuda
             
                 if(m_kernel_creation_lock->exchange(true) == false)
                 {
-                    std::unique_lock<std::shared_mutex> lck(*m_mtxKernels);
+                    std::lock_guard<std::shared_mutex> lck(*m_mtxKernels);
 
                     m_kernels.push_back(std::make_unique<kernelprogram<specialization<specialTypes...>::m_bytesize>>(m_device, filename, entry, bindings, specials));
                     it = std::prev(m_kernels.end());
@@ -431,11 +446,13 @@ namespace vuda
         {
             //
             // only one thread at a time can create its command pool
-            std::unique_lock<std::shared_mutex> lck(*m_mtxCmdPools);
+            std::lock_guard<std::shared_mutex> lck(*m_mtxCmdPools);
             //m_thrdCommandPools.insert({ tid, thrdcmdpool(m_device, m_queueFamilyIndex, m_queueComputeCount) });
             //m_thrdCommandPools.emplace(std::piecewise_construct, std::forward_as_tuple(tid), std::forward_as_tuple(m_device, m_queueFamilyIndex, m_queueComputeCount));
 
+            // c++17
             m_thrdCommandPools.try_emplace(tid, m_device, m_queueFamilyIndex, m_queueComputeCount);
+            //m_thrdCommandPools.try_emplace(tid, std::make_unique<thrdcmdpool>(m_device, m_queueFamilyIndex, m_queueComputeCount));
         }
 
         inline void logical_device::memcpyHtH(const std::thread::id tid, void* dst, const void* src, const size_t count, const uint32_t stream) const
@@ -508,7 +525,7 @@ namespace vuda
                 //
                 // every thread can look up its command pool in the list
                 std::shared_lock<std::shared_mutex> lckCmdPools(*m_mtxCmdPools);
-                const thrdcmdpool *pool = &m_thrdCommandPools.at(tid);
+                const thrdcmdpool *pool = &m_thrdCommandPools.at(tid);                
 
                 std::lock_guard<std::mutex> lckQueues(*m_mtxQueues[stream]);
                 vk::Queue q = m_queues.at(stream);
@@ -564,7 +581,7 @@ namespace vuda
                 //
                 // every thread can look up its command pool in the list
                 std::shared_lock<std::shared_mutex> lckCmdPools(*m_mtxCmdPools);
-                const thrdcmdpool *pool = &m_thrdCommandPools.at(tid);
+                const thrdcmdpool *pool = &m_thrdCommandPools.at(tid);                
 
                 std::lock_guard<std::mutex> lckQueues(*m_mtxQueues[stream]);
                 vk::Queue q = m_queues.at(stream);
@@ -633,7 +650,7 @@ namespace vuda
                 //
                 // every thread can look up its command pool in the list
                 std::shared_lock<std::shared_mutex> lckCmdPools(*m_mtxCmdPools);
-                const thrdcmdpool *pool = &m_thrdCommandPools.at(tid);
+                const thrdcmdpool *pool = &m_thrdCommandPools.at(tid);                
 
                 std::lock_guard<std::mutex> lckQueues(*m_mtxQueues[stream]);
                 vk::Queue q = m_queues.at(stream);
@@ -662,10 +679,10 @@ namespace vuda
             //
             // every thread can look up its command pool in the list
             std::shared_lock<std::shared_mutex> lckCmdPools(*m_mtxCmdPools);
-            const thrdcmdpool *pool = &m_thrdCommandPools.at(tid);
+            const thrdcmdpool *pool = &m_thrdCommandPools.at(tid);            
         
             //
-            // control queue submissions on this level        
+            // control queue submissions on this level
             std::lock_guard<std::mutex> lckQueues(*m_mtxQueues[stream]);
             vk::Queue q = m_queues.at(stream);
 
@@ -734,7 +751,7 @@ namespace vuda
         {
             //
             // retrieve stream id associated with event        
-            std::unique_lock<std::shared_mutex> lckEvents(*m_mtxEvents);
+            std::lock_guard<std::shared_mutex> lckEvents(*m_mtxEvents);
             const stream_t stream = m_events.at(event).get_stream();
 
             //
@@ -745,7 +762,7 @@ namespace vuda
             //
             // every thread can look up its command pool in the list
             std::shared_lock<std::shared_mutex> lckCmdPools(*m_mtxCmdPools);
-            const thrdcmdpool *pool = &m_thrdCommandPools.at(tid);
+            const thrdcmdpool *pool = &m_thrdCommandPools.at(tid);            
 
             //
             // start executing stream if it has not been submitted already
@@ -781,7 +798,7 @@ namespace vuda
         {
             //
             // protect storage tree
-            std::unique_lock<std::shared_mutex> lck(*m_mtxResources);
+            std::lock_guard<std::shared_mutex> lck(*m_mtxResources);
 
             /*std::ostringstream ostr;
             ostr << std::this_thread::get_id() << ": took lock" << std::endl;

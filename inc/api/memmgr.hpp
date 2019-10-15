@@ -7,11 +7,11 @@ namespace vuda
     {
         //
         // get device assigned to thread
-        const detail::thread_info tinfo = detail::interface_thread_info::GetThreadInfo(std::this_thread::get_id());
+        const detail::thread_info* tinfo = detail::interface_thread_info::GetThreadInfo(std::this_thread::get_id());
 
         //
         // free the allocation on the device
-        tinfo.GetLogicalDevice()->free(devPtr);
+        tinfo->GetLogicalDevice()->free(devPtr);
 
         return vudaSuccess;
     }
@@ -29,14 +29,14 @@ namespace vuda
     {
         //
         // get device assigned to thread
-        const detail::thread_info tinfo = detail::interface_thread_info::GetThreadInfo(std::this_thread::get_id());
+        const detail::thread_info* tinfo = detail::interface_thread_info::GetThreadInfo(std::this_thread::get_id());
 
         //
         // allocate mem on the device
         if(flags == hostAllocDefault)
-            tinfo.GetLogicalDevice()->mallocHost(pHost, size);
+            tinfo->GetLogicalDevice()->mallocHost(pHost, size);
         else if(flags == hostAllocWriteCombined)
-            tinfo.GetLogicalDevice()->hostAlloc(pHost, size);
+            tinfo->GetLogicalDevice()->hostAlloc(pHost, size);
         else
             assert(0);
 
@@ -48,11 +48,11 @@ namespace vuda
     {
         //
         // get device assigned to thread
-        const detail::thread_info tinfo = detail::interface_thread_info::GetThreadInfo(std::this_thread::get_id());
+        const detail::thread_info* tinfo = detail::interface_thread_info::GetThreadInfo(std::this_thread::get_id());
         
         //
         // allocate mem on the device
-        tinfo.GetLogicalDevice()->malloc(devPtr, size);
+        tinfo->GetLogicalDevice()->malloc(devPtr, size);
 
         return vudaSuccess;
     }
@@ -63,11 +63,11 @@ namespace vuda
     {
         //
         // get device assigned to thread
-        const detail::thread_info tinfo = detail::interface_thread_info::GetThreadInfo(std::this_thread::get_id());
+        const detail::thread_info* tinfo = detail::interface_thread_info::GetThreadInfo(std::this_thread::get_id());
 
         //
         // allocate mem on the device
-        tinfo.GetLogicalDevice()->mallocHost(ptr, size);
+        tinfo->GetLogicalDevice()->mallocHost(ptr, size);
 
         return vudaSuccess;        
     }
@@ -75,8 +75,11 @@ namespace vuda
     //__host__ ​
     inline error_t memcpy(void* dst, const void* src, const size_t count, const memcpyKind kind, const uint32_t stream=0)
     {
-        std::thread::id tid = std::this_thread::get_id();
-        const detail::thread_info tinfo = detail::interface_thread_info::GetThreadInfo(tid);
+        const std::thread::id tid = std::this_thread::get_id();
+
+        //
+        // get device assigned to thread
+        const detail::thread_info* tinfo = detail::interface_thread_info::GetThreadInfo(tid);
 
         if(kind == vuda::memcpyHostToHost)
         {
@@ -89,19 +92,19 @@ namespace vuda
         {
             //
             // submit the copy command to command buffer
-            tinfo.GetLogicalDevice()->memcpyToDevice(tid, dst, src, count, stream);
+            tinfo->GetLogicalDevice()->memcpyToDevice(tid, dst, src, count, stream);
         }
         else if(kind == vuda::memcpyDeviceToDevice)
         {
             //
             // submit the copy command to command buffer
-            tinfo.GetLogicalDevice()->memcpyDeviceToDevice(tid, dst, src, count, stream);
+            tinfo->GetLogicalDevice()->memcpyDeviceToDevice(tid, dst, src, count, stream);
         }
         else if(kind == vuda::memcpyDeviceToHost)
         {            
             //
             // submit the copy command to command buffer
-            tinfo.GetLogicalDevice()->memcpyToHost(tid, dst, src, count, stream);
+            tinfo->GetLogicalDevice()->memcpyToHost(tid, dst, src, count, stream);
         }
 
         return vudaSuccess;

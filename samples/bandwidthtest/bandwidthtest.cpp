@@ -71,27 +71,27 @@ void profileCopiesQuery(float *h_a, float *h_b, float *d, unsigned int n, std::s
 
     uint32_t startQueryID, stopQueryID;
     std::thread::id tid = std::this_thread::get_id();
-    const vuda::detail::thread_info tinfo = vuda::detail::interface_thread_info::GetThreadInfo(tid);
-    tinfo.GetLogicalDevice()->GetQueryID(tid, &startQueryID);
-    tinfo.GetLogicalDevice()->GetQueryID(tid, &stopQueryID);
+    const vuda::detail::thread_info* tinfo = vuda::detail::interface_thread_info::GetThreadInfo(tid);
+    tinfo->GetLogicalDevice()->GetQueryID(tid, &startQueryID);
+    tinfo->GetLogicalDevice()->GetQueryID(tid, &stopQueryID);
         
-    tinfo.GetLogicalDevice()->WriteTimeStamp(tid, startQueryID, 0);
+    tinfo->GetLogicalDevice()->WriteTimeStamp(tid, startQueryID, 0);
     vuda::memcpy(d, h_a, bytes, vuda::memcpyHostToDevice);
-    tinfo.GetLogicalDevice()->WriteTimeStamp(tid, stopQueryID, 0);    
+    tinfo->GetLogicalDevice()->WriteTimeStamp(tid, stopQueryID, 0);
     vuda::streamSynchronize(0);
     //tinfo.GetLogicalDevice()->FlushQuery(tid, stopQueryID);
 
     float time;
-    time = tinfo.GetLogicalDevice()->GetQueryPoolResults(tid, startQueryID, stopQueryID);
+    time = tinfo->GetLogicalDevice()->GetQueryPoolResults(tid, startQueryID, stopQueryID);
     std::cout << "  Host to Device bandwidth (GB/s): " << bytes * 1e-6 / time << std::endl;
     
-    tinfo.GetLogicalDevice()->WriteTimeStamp(tid, startQueryID, 0);
+    tinfo->GetLogicalDevice()->WriteTimeStamp(tid, startQueryID, 0);
     vuda::memcpy(h_b, d, bytes, vuda::memcpyDeviceToHost);
-    tinfo.GetLogicalDevice()->WriteTimeStamp(tid, stopQueryID, 0);
+    tinfo->GetLogicalDevice()->WriteTimeStamp(tid, stopQueryID, 0);
     vuda::streamSynchronize(0);
     //tinfo.GetLogicalDevice()->FlushQuery(tid, stopQueryID);
     
-    time = tinfo.GetLogicalDevice()->GetQueryPoolResults(tid, startQueryID, stopQueryID);
+    time = tinfo->GetLogicalDevice()->GetQueryPoolResults(tid, startQueryID, stopQueryID);
     std::cout << "  Device to Host bandwidth  (GB/s): " << bytes * 1e-6 / time << std::endl;
 
     for(unsigned int i = 0; i < n; ++i)

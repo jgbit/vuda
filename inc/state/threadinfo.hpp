@@ -5,7 +5,7 @@ namespace vuda
     namespace detail
     {
 
-        class thread_info
+        class thread_info final
         {
         public:
             thread_info(const std::thread::id tid, const int deviceID, logical_device* deviceptr) : m_deviceID(deviceID), m_ldptr(deviceptr)
@@ -28,17 +28,17 @@ namespace vuda
             logical_device* m_ldptr;
         };
 
-        class interface_thread_info final
+        class interface_thread_info final : public singleton
         {
         public:
             static void insert(const std::thread::id tid, const int deviceID, logical_device* device)
             {                        
                 // only one thread/writer can insert/write.
-                std::unique_lock<std::shared_mutex> lock(mtx());            
+                std::lock_guard<std::shared_mutex> lock(mtx());
                 get().try_emplace(tid, thread_info(tid, deviceID, device));
             }
 
-            static thread_info GetThreadInfo(std::thread::id tid)
+            static const thread_info* GetThreadInfo(std::thread::id tid)
             {
                 // Multiple threads/readers can read at the same time.
                 std::shared_lock<std::shared_mutex> lock(mtx());
@@ -52,11 +52,11 @@ namespace vuda
                 }
             #endif
 
-                return get().at(tid);
+                return &get().at(tid);
             }
 
         private:
-            // singleton
+            
             static std::unordered_map<std::thread::id, thread_info>& get(void)
             {
                 static std::unordered_map<std::thread::id, thread_info> local_thread_infos;
@@ -69,16 +69,6 @@ namespace vuda
                 static std::shared_mutex local_mtx;
                 return local_mtx;
             }
-
-        private:
-            interface_thread_info() = default;
-            ~interface_thread_info() = default;
-
-            // delete copy and move constructors and assign operators
-            interface_thread_info(interface_thread_info const&) = delete;             // Copy construct
-            interface_thread_info(interface_thread_info&&) = delete;                  // Move construct
-            interface_thread_info& operator=(interface_thread_info const&) = delete;  // Copy assign
-            interface_thread_info& operator=(interface_thread_info &&) = delete;      // Move assign
 
         };
 

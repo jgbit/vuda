@@ -21,14 +21,12 @@
 #include <tuple>
 #include <chrono>
 
-#include "state/singleton.hpp"
 #include "setup/types.hpp"
 #include "setup/debug.hpp"
 
 #include "state/pool.hpp"
 #include "state/event.hpp"
 #include "state/specialization.hpp"
-#include "state/instance.hpp"
 #include "state/vulkanfunc.hpp"
 #include "state/kernelprogram.hpp"
 #include "state/memoryallocator.hpp"
@@ -41,10 +39,21 @@
 #include "state/cachedbuffer.hpp"
 #include "state/thrdcmdpool.hpp"
 #include "state/logicaldevice.hpp"
-#include "state/interfacelogicaldevices.hpp"
-#include "state/threadinfo.hpp"
 #include "state/kernellaunchinfo.hpp"
 
+// state (singletons)
+#include "state/singleton.hpp"
+#include "state/instance.hpp"
+#include "state/interfacelogicaldevices.hpp"
+#include "state/threadinfo.hpp"
+
+/*
+client api
+instantiation of singletons:
+    setDevice is required in any thread before any API functionality can be called.
+    most API functions start by calling GetThreadInfo(); this throws an exception if a device has not been assigned (provided VUDA_DEBUG_ENABLED is defined).
+    exceptions: {getDeviceCount, getDeviceProperties} accesss the vuda instance directly.
+*/
 #include "api/devicemgr.hpp"
 #include "api/memmgr.hpp"
 #include "api/streammgr.hpp"

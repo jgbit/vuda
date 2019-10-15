@@ -8,15 +8,10 @@
 
 #include <vuda.hpp>
 
-//void VudaDebugKernel(const int n, int* a, int* r);
-
-int main(void)
+int main(int argc, char *argv[])
 {
     try
     {
-        //
-        // Setup    
-
         vuda::setDevice(0);
 
         const int n = 64;
@@ -33,20 +28,18 @@ int main(void)
         vuda::malloc((void**)&d_d, n * sizeof(int));
         
         //
-        // KERNEL DEBUG
-        //VudaDebugKernel(n, a, r);
+        // run version with static shared memory
+        vuda::memcpy(d_d, a, n * sizeof(int), vuda::memcpyHostToDevice);
+        vuda::launchKernel("glslStaticReverse.spv", "main", 0, 1, n, d_d);
+        vuda::memcpy(d, d_d, n * sizeof(int), vuda::memcpyDeviceToHost);
 
-        //
-        // VUDA
-
-        //
-        // function arguments
-        void* args[] = { (void*)&d_d, (void*)&n };    
+        for(int i = 0; i < n; i++)
+            if(d[i] != r[i]) printf("Error: d[%d]!=r[%d] (%d, %d)\n", i, i, d[i], r[i]);
 
         //
         // run version with dynamic shared memory (glsl)
         vuda::memcpy(d_d, a, n * sizeof(int), vuda::memcpyHostToDevice);
-        vuda::launchKernel("glslStaticReverse.spv", "main", 0, 1, n, d_d, n);
+        vuda::launchKernel("glslDynamicReverse.spv", "main", 0, 1, n, d_d, n);
         vuda::memcpy(d, d_d, n * sizeof(int), vuda::memcpyDeviceToHost);
 
         for(int i = 0; i < n; i++)
@@ -71,6 +64,9 @@ int main(void)
         return EXIT_FAILURE;
     }
 
-    system("pause");
+#ifndef NDEBUG
+    std::cout << "done." << std::endl;
+    std::cin.get();
+#endif
     return 0;
 }

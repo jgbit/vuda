@@ -44,11 +44,11 @@ namespace vuda
 
         //
         // get device assigned to thread
-        const detail::thread_info tinfo = detail::interface_thread_info::GetThreadInfo(tid);
+        const detail::thread_info* tinfo = detail::interface_thread_info::GetThreadInfo(tid);
 
         //
         // book-keeping                
-        detail::kernel_launch_info<Ts...> kl_info(tinfo.GetLogicalDevice(), args...);
+        detail::kernel_launch_info<Ts...> kl_info(tinfo->GetLogicalDevice(), args...);
 
         //
         // add to the compute queue
@@ -62,7 +62,7 @@ namespace vuda
         std::vector<vk::DescriptorBufferInfo> bufferdescs(kl_info.getBufferDesc().size());
         std::copy_n(kl_info.getBufferDesc().begin(), kl_info.getBufferDesc().size(), bufferdescs.begin());
 
-        tinfo.GetLogicalDevice()->SubmitKernel(tid, filename, entry, bindings, kl_info.getSpecials(), bufferdescs, gridDim, stream_id);
+        tinfo->GetLogicalDevice()->SubmitKernel(tid, filename, entry, bindings, kl_info.getSpecials(), bufferdescs, gridDim, stream_id);
     }
 
     /*__host__
@@ -71,60 +71,5 @@ namespace vuda
         // https://stackoverflow.com/questions/48552390/whats-the-difference-between-launching-with-an-api-call-vs-the-triple-chevron-s
         return vudaSuccess;
     }*/
-
-#ifdef VUDA_DEBUG_KERNEL
-    
-    template <typename... Ts>
-    inline error_t hostKernel(void(*func)(Ts...), dim3 gridDims, dim3 blockDims, Ts... args)//, void** args, size_t sharedMem, stream_t stream=0)
-    {
-        //
-        // create a callable functor with the arguments given
-        std::function<void()> functor = std::bind(func, args...);
-
-        //
-        // all threads in a block is executed in parallel, but each block is executed sequential
-        unsigned int num_threads = blockDims.x * blockDims.y * blockDims.z;
-        std::thread* t = new std::thread[num_threads];
-
-        // setup __syncthreads();
-        debug::syncthreads::set_max(num_threads);
-
-        //
-        // set grid and block dimensions
-        blockDim = blockDims;
-        gridDim = gridDims;
-
-        // for each block in the grid
-        //for(unsigned int block=0; block <num_blocks; ++block)
-        for(unsigned int bx = 0; bx < gridDims.x; ++bx)
-        {
-            for(unsigned int by = 0; by < gridDims.y; ++by)
-            {
-                for(unsigned int bz = 0; bz < gridDims.z; ++bz)
-                {
-                    //
-                    // set block index
-                    blockIdx = vuda::dim3(bx, by, bz);
-
-                    // reset threadIdx
-                    threadIdx.reset();
-
-                    // reset __syncthreads();
-                    debug::syncthreads::reset();
-
-                    // launch all threads
-                    for(unsigned int i = 0; i < num_threads; ++i)
-                        t[i] = std::thread(functor);
-                    for(unsigned int i = 0; i < num_threads; ++i)
-                        t[i].join();
-                }
-            }
-        }
-
-        delete[] t;
-        return vudaSuccess;
-    }
-    
-#endif
 
 } //namespace vuda

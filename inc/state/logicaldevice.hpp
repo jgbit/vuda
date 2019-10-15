@@ -44,12 +44,12 @@ namespace vuda
             //
             // kernel creation
             template <typename... specialTypes>
-            inline void SubmitKernel(   const std::thread::id tid, char const* filename, char const* entry,
-                                        const std::vector<vk::DescriptorSetLayoutBinding>& bindings,
-                                        specialization<specialTypes...>& specials,
-                                        const std::vector<vk::DescriptorBufferInfo>& bufferDescriptors,
-                                        const dim3 blocks,
-                                        const uint32_t stream);
+            void SubmitKernel(  const std::thread::id tid, char const* filename, char const* entry,
+                                const std::vector<vk::DescriptorSetLayoutBinding>& bindings,
+                                specialization<specialTypes...>& specials,
+                                const std::vector<vk::DescriptorBufferInfo>& bufferDescriptors,
+                                const dim3 blocks,
+                                const uint32_t stream);
 
             /*template <typename... specialTypes>
             uint64_t CreateKernel(char const* filename, char const* entry, const std::vector<vk::DescriptorSetLayoutBinding>& bindings, specialization<specialTypes...>& specials, int blocks);*/
@@ -113,7 +113,6 @@ namespace vuda
             // compute kernels
             std::unique_ptr<std::atomic<bool>> m_kernel_creation_lock;
             std::unique_ptr<std::shared_mutex> m_mtxKernels;
-            //std::vector<std::shared_ptr<kernel_interface>> m_kernels;
             std::vector<std::shared_ptr<kernel_interface>> m_kernels;
 
             //
@@ -132,7 +131,7 @@ namespace vuda
 
             //
             // internal buffers {cached, pinned}
-            internal_buffers<host_cached_node_internal> m_cachedBuffers;        
+            internal_buffers<host_cached_node_internal> m_cachedBuffers;
             internal_buffers<host_pinned_node_internal> m_pinnedBuffers;
 
             //

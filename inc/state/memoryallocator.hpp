@@ -98,8 +98,8 @@ namespace vuda
                 m_memoryTypeIndex(vudaFindMemoryType(physDevice, m_memreq.memoryTypeBits, memory_properties)),
 
                 //
-                // allocate chunck of memory            
-                m_size(size),
+                // allocate chunck of memory with the correct memory alignment 
+                m_size(m_memreq.size),
                 m_memory(device.allocateMemoryUnique(vk::MemoryAllocateInfo(m_size, m_memoryTypeIndex))),
 
                 //
@@ -117,6 +117,10 @@ namespace vuda
                 //
                 // create initial block
                 m_blocks.emplace_back(std::make_unique<memory_block>(0, m_size, m_buffer.get()));
+
+                //
+                // hello there
+                //std::cout << "new block bound" << std::endl;
             }
 
             //
@@ -133,7 +137,7 @@ namespace vuda
                 //
                 // find a free block that has sufficiently range
 
-                std::unique_lock<std::mutex> lck(*m_mtxBlocks);
+                std::lock_guard<std::mutex> lck(*m_mtxBlocks);
 
                 for(size_t i = 0; i < m_blocks.size(); ++i)
                 {   
@@ -186,7 +190,7 @@ namespace vuda
         
             size_t get_size(void) const
             {
-                std::unique_lock<std::mutex> lck(*m_mtxBlocks);
+                std::lock_guard<std::mutex> lck(*m_mtxBlocks);
                 return m_blocks.size();
             }*/
 
@@ -224,7 +228,7 @@ namespace vuda
             */
 
             //memory_allocator(const vk::PhysicalDevice& physDevice, const vk::Device& device, const bool hostVisible, const uint32_t memoryTypeIndex, const vk::DeviceSize default_alloc_size = (vk::DeviceSize)1 << 20) :
-            memory_allocator(const vk::PhysicalDevice& physDevice, const vk::Device& device, const vk::DeviceSize default_alloc_size = (vk::DeviceSize)1 << 20) :
+            memory_allocator(const vk::PhysicalDevice& physDevice, const vk::Device& device, const vk::DeviceSize default_alloc_size = (vk::DeviceSize)(1 << 28)) :
                 m_physDevice(physDevice),
                 m_device(device),
                 m_defaultChunkSize(default_alloc_size),
@@ -242,6 +246,11 @@ namespace vuda
                 {memoryPropertiesFlags::eHostProperties, 1},
                 {memoryPropertiesFlags::eCachedProperties, 2} }
             {
+                //
+                //
+                vk::DeviceSize device_memory_size = findDeviceLocalMemorySize(physDevice);
+                m_defaultChunkSize = std::min(device_memory_size / 16, m_defaultChunkSize);
+
                 //
                 // types of memory
                 std::vector<uint32_t> memoryIndices;
@@ -294,7 +303,7 @@ namespace vuda
                     // create new memory chunk
                     if(m_creation_locks[pureIndex]->exchange(true) == false)
                     {
-                        std::unique_lock<std::shared_mutex> lck(*m_mtxTypeChunks[pureIndex]);
+                        std::lock_guard<std::shared_mutex> lck(*m_mtxTypeChunks[pureIndex]);
 
                         vk::DeviceSize use_size = m_defaultChunkSize;
                         if(size > m_defaultChunkSize)
@@ -345,7 +354,7 @@ namespace vuda
                 //
                 // create new memory chunk
                 {
-                    std::unique_lock<std::shared_mutex> lck(m_mtxChunks);
+                    std::lock_guard<std::shared_mutex> lck(m_mtxChunks);
 
                     vk::DeviceSize used_size = m_defaultChunkSize;
                     if(size > m_defaultChunkSize)

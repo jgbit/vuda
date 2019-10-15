@@ -105,6 +105,7 @@ int main(void)
     const int totalRuns = 10;
     double totalElapsedTime;
 
+    // NOTE: if cudaSetDevice is not called, the setup will take place at the first cuda call instead inside the timed scope
     cudaSetDevice(0);
     totalElapsedTime = 0.0;
     double elapsed = 0.0;

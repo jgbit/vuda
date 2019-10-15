@@ -26,38 +26,12 @@ namespace vuda
         {
         public:
 
-            host_cached_node_internal(const size_t size, memory_allocator& allocator) :            
-                m_size(size)
+            host_cached_node_internal(const size_t size, memory_allocator& allocator) : internal_node(size)
             {
                 //
                 // allocate
                 m_ptrMemBlock = allocator.allocate(vk::MemoryPropertyFlags(memoryPropertiesFlags::eCachedInternalProperties), size);
             }
-        
-            vk::DeviceSize get_size(void) const
-            {
-                return m_size;
-            }
-
-            vk::Buffer GetBuffer(void) const
-            {
-                return m_ptrMemBlock->get_buffer();
-            }
-
-            vk::DeviceSize GetOffset(void) const
-            {
-                return m_ptrMemBlock->get_offset();
-            }
-
-            void* get_memptr(void) const
-            {
-                return m_ptrMemBlock->get_ptr();
-            }
-
-        private:
-
-            vk::DeviceSize m_size;
-            memory_block* m_ptrMemBlock;
         };
 
     } //namespace detail

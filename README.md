@@ -71,7 +71,7 @@ int main(void)
 
 | Date | Changes |
 | :--- | :------ |
-| xx/01/2019 |  |
+| 15/10/2019 | internal state and memory allocation improvements, shared memory sample |
 | 20/12/2018 | data structure for managing descriptor set and command buffer pool allocations |
 | 25/11/2018 | Makefiles and gcc conformity |
 | 13/11/2018 | virtual alloc for local device mem, one buffer per mem alloc, vuda::events, sync memcpy conformity, bandwidthtest, julia set |

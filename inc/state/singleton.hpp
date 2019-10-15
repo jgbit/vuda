@@ -4,8 +4,9 @@ namespace vuda
 {
     namespace detail
     {
-
+        //
         // singleton base class
+        //
         class singleton
         {
         protected:

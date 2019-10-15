@@ -86,7 +86,7 @@ namespace vuda
                 m_device.destroyDescriptorPool(m_descriptorPool);
             }
 
-            T get(uint32_t index) const
+            T get(const uint32_t index) const
             {
                 return m_descriptorSets[index];
             }
@@ -116,19 +116,18 @@ namespace vuda
             commandbuffer_pool_allocator(vk::Device device, uint32_t queueFamilyIndex) :
                 m_device(device),
                 // allocate pool
-                m_commandPool(device.createCommandPool(vk::CommandPoolCreateInfo(vk::CommandPoolCreateFlags(), queueFamilyIndex))),
+                m_commandPool(device.createCommandPool(vk::CommandPoolCreateInfo(vk::CommandPoolCreateFlags(), queueFamilyIndex))),                
                 // allocate buffers
                 m_commandBuffers(device.allocateCommandBuffers(vk::CommandBufferAllocateInfo(m_commandPool, vk::CommandBufferLevel::ePrimary, (uint32_t)capacity)))
-            {
-                
+            {                
             }
 
             ~commandbuffer_pool_allocator()
             {
-                m_device.destroyCommandPool(m_commandPool);                
+                m_device.destroyCommandPool(m_commandPool);
             }
 
-            T get(uint32_t index) const
+            T get(const uint32_t index) const
             {
                 return m_commandBuffers[index];
             }
@@ -148,6 +147,49 @@ namespace vuda
         /*
             {command buffer, fence, descriptor usage} pool node
         */
+        struct command_buffer_ext
+        {
+        public:
+            command_buffer_ext(const vk::Device device, const vk::CommandPool cmdpool) :
+                m_fence(device.createFence(vk::FenceCreateFlags()))                
+            {                
+            }
+
+            void set_command_buffer(const vk::CommandBuffer& cb)
+            {
+                m_commandBuffer = cb;
+            }
+
+            // note there are no destructor as that would require to store device,
+            // it is up to thrdcb_pool_allocator to destroy the fence allocation on cleanup
+            void destroyfence(const vk::Device device)
+            {
+                device.destroyFence(m_fence);
+            }
+
+            void reset(const vk::Device device)
+            {
+                device.resetFences(1, &m_fence);
+
+                //
+                // return all descriptor sets to their respective pools
+                for(size_t i = 0; i < m_desc_pools.size(); ++i)
+                    m_desc_pools[i]->return_element();
+                m_desc_pools.clear();
+            }
+
+            void addpoolid(descriptor_pool_allocator<VUDA_NUM_KERNEL_DESCRIPTOR_SETS, vk::DescriptorSet>* id)
+            {
+                m_desc_pools.push_back(id);
+            }
+
+        private:
+
+            vk::Fence m_fence;
+            vk::CommandBuffer m_commandBuffer;
+            std::vector<descriptor_pool_allocator<VUDA_NUM_KERNEL_DESCRIPTOR_SETS, vk::DescriptorSet>*> m_desc_pools;
+        };
+
         template<size_t capacity, typename T>
         class thrdcb_pool_allocator : public default_pool_allocator<capacity, T>
         {
@@ -157,9 +199,13 @@ namespace vuda
                 m_device(device),
                 // allocate pool
                 m_commandPool(device.createCommandPool(vk::CommandPoolCreateInfo(vk::CommandPoolCreateFlags(), queueFamilyIndex))),
+                // allocate buffers
+                m_commandBuffers(device.allocateCommandBuffers(vk::CommandBufferAllocateInfo(m_commandPool, vk::CommandBufferLevel::ePrimary, (uint32_t)capacity))),
                 // allocate command buffer ext
                 m_cbext(command_buffer_ext(device, m_commandPool), capacity)
             {
+                for(size_t i = 0; i < capacity; ++i)
+                    m_cbext[i].set_command_buffer(m_commandBuffers[i]);
             }
 
             ~thrdcb_pool_allocator()
@@ -169,7 +215,7 @@ namespace vuda
                     m_cbext[i].destroyfence(m_device);
             }
 
-            T get(uint32_t index) const
+            T get(const uint32_t index) const
             {
                 return m_cbext[index];
             }
@@ -179,42 +225,13 @@ namespace vuda
                 m_device.resetCommandPool(m_commandPool, vk::CommandPoolResetFlags());
                 // reset cmd buf ext
                 for(size_t i = 0; i < capacity; ++i)
-                    m_cbext[i].reset();
+                    m_cbext[i].reset(m_device);
             }
-
-        private:
-            struct command_buffer_ext
-            {
-            public:
-                command_buffer_ext(vk::Device device, vk::CommandPool cmdpool) :
-                    m_fence(device.createFence(vk::FenceCreateFlags())),
-                    m_commandBuffer(device.allocateCommandBuffers(vk::CommandBufferAllocateInfo(cmdpool, vk::CommandBufferLevel::ePrimary, 1))),
-                    pool_id(nullptr)
-                {}
-
-                // note there are no destructor as that would require to store device,
-                // it is up to thrdcb_pool_allocator to destroy the fence allocation on cleanup
-                void destroyfence(vk::Device device)
-                {
-                    device.destroyFence(m_fence);
-                }
-
-                void reset(vk::Device device)
-                {
-                    pool_id = nullptr;
-                    device.resetFences(1, &m_fence);
-                }
-
-            private:
-
-                vk::Fence m_fence;
-                vk::CommandBuffer m_commandBuffer;
-                descriptor_pool_allocator<VUDA_NUM_KERNEL_DESCRIPTOR_SETS, vk::DescriptorSet>* pool_id;
-            };
 
         private:
             vk::Device m_device;
             vk::CommandPool m_commandPool;
+            std::vector<vk::CommandBuffer> m_commandBuffers;
             std::vector<command_buffer_ext> m_cbext;
         };
 
@@ -281,7 +298,7 @@ namespace vuda
 
                     // exit look when we have a valid (unique) index
                     if(index < capacity)
-                        break;                    
+                        break;
                     
                     // take lock
                     if(m_creation_lock.test_and_set(std::memory_order_acquire) == false)
