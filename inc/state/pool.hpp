@@ -67,7 +67,7 @@ namespace vuda
                 m_device(device),
                 //
                 // allocate descriptor pool
-                m_descriptorPoolSize(vk::DescriptorPoolSize(vk::DescriptorType::eStorageBuffer, binding_size)),
+                m_descriptorPoolSize(vk::DescriptorPoolSize(vk::DescriptorType::eStorageBuffer, binding_size * static_cast<uint32_t>(capacity))),
                 m_descriptorPool(device.createDescriptorPool(vk::DescriptorPoolCreateInfo(vk::DescriptorPoolCreateFlags(), (uint32_t)capacity, 1, &m_descriptorPoolSize))),
 
                 //
