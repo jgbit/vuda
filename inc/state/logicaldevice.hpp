@@ -43,13 +43,13 @@ namespace vuda
 
             //
             // kernel creation
-            template <typename... specialTypes>
-            void SubmitKernel(  const std::thread::id tid, char const* filename, char const* entry,
-                                const std::vector<vk::DescriptorSetLayoutBinding>& bindings,
-                                specialization<specialTypes...>& specials,
-                                const std::vector<vk::DescriptorBufferInfo>& bufferDescriptors,
+            template <typename... specialTypes, size_t bindingSize>
+            void SubmitKernel(  const std::thread::id tid, std::string const& identifier, char const* entry,
+                                const std::array<vk::DescriptorSetLayoutBinding, bindingSize>& bindings,
+                                const specialization<specialTypes...>& specials,                                
+                                const std::array<vk::DescriptorBufferInfo, bindingSize>& bufferDescriptors,
                                 const dim3 blocks,
-                                const uint32_t stream);
+                                const stream_t stream);
 
             /*template <typename... specialTypes>
             uint64_t CreateKernel(char const* filename, char const* entry, const std::vector<vk::DescriptorSetLayoutBinding>& bindings, specialization<specialTypes...>& specials, int blocks);*/
@@ -58,13 +58,13 @@ namespace vuda
             // command pool functions        
             void CreateCommandPool(const std::thread::id tid);
         
-            void memcpyHtH(const std::thread::id tid, void* dst, const void* src, const size_t count, const uint32_t stream) const;
-            void memcpyToDevice(const std::thread::id tid, void* dst, const void* src, const size_t count, const uint32_t stream);
-            void memcpyDeviceToDevice(const std::thread::id tid, void* dst, const void* src, const size_t count, const uint32_t stream) const;
-            void memcpyToHost(const std::thread::id tid, void* dst, const void* src, const size_t count, const uint32_t stream);
+            void memcpyHtH(const std::thread::id tid, void* dst, const void* src, const size_t count, const stream_t stream) const;
+            void memcpyToDevice(const std::thread::id tid, void* dst, const void* src, const size_t count, const stream_t stream);
+            void memcpyDeviceToDevice(const std::thread::id tid, void* dst, const void* src, const size_t count, const stream_t stream) const;
+            void memcpyToHost(const std::thread::id tid, void* dst, const void* src, const size_t count, const stream_t stream);
 
-            //void UpdateDescriptorAndCommandBuffer(const std::thread::id tid, const uint64_t kernelIndex, const std::vector<void*>& memaddr, const std::vector<vk::DescriptorBufferInfo>& bufferDescriptors, const uint32_t stream);
-            void FlushQueue(const std::thread::id tid, const uint32_t stream);
+            //void UpdateDescriptorAndCommandBuffer(const std::thread::id tid, const uint64_t kernelIndex, const std::vector<void*>& memaddr, const std::vector<vk::DescriptorBufferInfo>& bufferDescriptors, const stream_t stream);
+            void FlushQueue(const std::thread::id tid, const stream_t stream);
             void FlushEvent(const std::thread::id tid, const event_t event);        
 
             //
@@ -73,9 +73,13 @@ namespace vuda
 
         private:
 
-            //std::vector<uint32_t> GetStreamIdentifiers(const void* src);
-                
+            //std::vector<uint32_t> GetStreamIdentifiers(const void* src);                
             void push_mem_node(default_storage_node* node);
+
+            //
+            // shader modules            
+            std::vector<char> ReadShaderModuleFromFile(const std::string& filename) const;
+            vk::ShaderModule CreateShaderModule(std::string const& identifier, char const* entry);
 
         private:
 
@@ -110,10 +114,19 @@ namespace vuda
             std::vector<vk::Queue> m_queues;
 
             //
+            // shader modules
+            //std::unique_ptr<std::shared_mutex> m_mtxModules;
+            std::unordered_map<std::string, vk::UniqueShaderModule> m_modules;
+            #ifdef VUDA_DEBUG_ENABLED
+            std::map<std::string, std::string> m_debug_module_entries;
+            #endif
+
+            //
             // compute kernels
             std::unique_ptr<std::atomic<bool>> m_kernel_creation_lock;
             std::unique_ptr<std::shared_mutex> m_mtxKernels;
-            std::vector<std::shared_ptr<kernel_interface>> m_kernels;
+            //std::vector<std::shared_ptr<kernel_interface>> m_kernels;
+            std::unordered_map<std::string, std::shared_ptr<kernel_interface>> m_kernels;
 
             //
             // resources

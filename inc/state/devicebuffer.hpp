@@ -62,9 +62,10 @@ namespace vuda
                 // clean up virtual mem reservation
                 int retflag = VirtFree(m_ptrVirtual, m_allocatedSize);
 
-                //assert(retflag);
+    //#ifdef VUDA_DEBUG_ENABLED
                 if(retflag == 0)
                     throw std::runtime_error("vuda: failed to free virtual memory reservation!");
+    //#endif
             }
 
             //

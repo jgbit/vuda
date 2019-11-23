@@ -37,6 +37,7 @@ namespace vuda
             //
             // create unique mutexes
             m_mtxResources = std::make_unique<std::shared_mutex>();
+            //m_mtxModules = std::make_unique<std::shared_mutex>();
             m_mtxKernels = std::make_unique<std::shared_mutex>();
             m_mtxCmdPools = std::make_unique<std::shared_mutex>();
             m_mtxEvents = std::make_unique<std::shared_mutex>();
@@ -351,39 +352,33 @@ namespace vuda
         // kernels associated with the logical device
         //
 
-        template <typename... specialTypes>
-        inline void logical_device::SubmitKernel(   const std::thread::id tid, char const* filename, char const* entry,
-                                                    const std::vector<vk::DescriptorSetLayoutBinding>& bindings,
-                                                    specialization<specialTypes...>& specials,
-                                                    const std::vector<vk::DescriptorBufferInfo>& bufferDescriptors,
-                                                    //const uint32_t blocks,
+        template <typename... specialTypes, size_t bindingSize>
+        inline void logical_device::SubmitKernel(   const std::thread::id tid, std::string const& identifier, char const* entry,
+                                                    const std::array<vk::DescriptorSetLayoutBinding, bindingSize>& bindings,
+                                                    const specialization<specialTypes...>& specials,
+                                                    const std::array<vk::DescriptorBufferInfo, bindingSize>& bufferDescriptors,                                                    
                                                     const dim3 blocks,
-                                                    const uint32_t stream)
+                                                    const stream_t stream)
         {
             assert(stream >= 0 && stream < m_queueComputeCount);
 
             while(true)
             {
                 kernelprogram<specialization<specialTypes...>::m_bytesize>* kernel = nullptr;
-                std::vector<std::shared_ptr<kernel_interface>>::iterator it;
+                std::unordered_map<std::string, std::shared_ptr<kernel_interface>>::const_iterator it;
 
                 //
-                // check if the kernel is already created
+                // check if the kernel is already created (shared lock)
                 {
                     std::shared_lock<std::shared_mutex> lck(*m_mtxKernels);
-
-                    it = std::find_if(m_kernels.begin(), m_kernels.end(), [&filename, &entry](std::shared_ptr<kernel_interface>& kernel)
-                    {
-                        return (kernel->GetFileName() == filename && kernel->GetEntryName() == entry);
-                    });
-
+                    it = m_kernels.find(entry);
                     if(it != m_kernels.end())
                     {
-                        kernel = static_cast<kernelprogram<specialization<specialTypes...>::m_bytesize>*>((*it).get());
+                        kernel = static_cast<kernelprogram<specialization<specialTypes...>::m_bytesize>*>((*it).second.get());
 
                         //
                         // every thread can look up its command pool in the list
-                        std::shared_lock<std::shared_mutex> lckCmdPools(*m_mtxCmdPools);                        
+                        std::shared_lock<std::shared_mutex> lckCmdPools(*m_mtxCmdPools);
                         const thrdcmdpool *pool = &m_thrdCommandPools.at(tid);
 
                         //
@@ -411,8 +406,11 @@ namespace vuda
                 {
                     std::lock_guard<std::shared_mutex> lck(*m_mtxKernels);
 
-                    m_kernels.push_back(std::make_unique<kernelprogram<specialization<specialTypes...>::m_bytesize>>(m_device, filename, entry, bindings, specials));
-                    it = std::prev(m_kernels.end());
+                    //
+                    // retrieve shader module
+                    vk::ShaderModule shaderModule = CreateShaderModule(identifier, entry);
+                    m_kernels.try_emplace(entry, std::make_unique<kernelprogram<specialization<specialTypes...>::m_bytesize>>(m_device, shaderModule, entry, bindings, specials));
+                    //assert(pair.second);
 
                     /*std::stringstream ostr;
                     ostr << "creating kernel" << std::endl;
@@ -455,12 +453,12 @@ namespace vuda
             //m_thrdCommandPools.try_emplace(tid, std::make_unique<thrdcmdpool>(m_device, m_queueFamilyIndex, m_queueComputeCount));
         }
 
-        inline void logical_device::memcpyHtH(const std::thread::id tid, void* dst, const void* src, const size_t count, const uint32_t stream) const
+        inline void logical_device::memcpyHtH(const std::thread::id tid, void* dst, const void* src, const size_t count, const stream_t stream) const
         {
         
         }
 
-        inline void logical_device::memcpyToDevice(const std::thread::id tid, void* dst, const void* src, const size_t count, const uint32_t stream)
+        inline void logical_device::memcpyToDevice(const std::thread::id tid, void* dst, const void* src, const size_t count, const stream_t stream)
         {
             /*
             conformity to cudaMemcpy synchronous
@@ -551,7 +549,7 @@ namespace vuda
             }        
         }
 
-        inline void logical_device::memcpyDeviceToDevice(const std::thread::id tid, void* dst, const void* src, const size_t count, const uint32_t stream) const
+        inline void logical_device::memcpyDeviceToDevice(const std::thread::id tid, void* dst, const void* src, const size_t count, const stream_t stream) const
         {
             /*
             conformity to cudaMemcpy synchronous
@@ -590,7 +588,7 @@ namespace vuda
             }
         }
 
-        inline void logical_device::memcpyToHost(const std::thread::id tid, void* dst, const void* src, const size_t count, const uint32_t stream)
+        inline void logical_device::memcpyToHost(const std::thread::id tid, void* dst, const void* src, const size_t count, const stream_t stream)
         {
             /*
             conformity to cudaMemcpy synchronous
@@ -674,7 +672,7 @@ namespace vuda
             }
         }
 
-        inline void logical_device::FlushQueue(const std::thread::id tid, const uint32_t stream)
+        inline void logical_device::FlushQueue(const std::thread::id tid, const stream_t stream)
         {
             //
             // every thread can look up its command pool in the list
@@ -818,6 +816,91 @@ namespace vuda
             /*m_storage.walk_depth(m_storageBST_root);
             ostr << std::this_thread::get_id() << ": releasing lock" << std::endl;
             std::cout << ostr.str();*/
+        }
+
+        //
+        // create shader module
+        //
+
+        inline vk::ShaderModule logical_device::CreateShaderModule(std::string const& identifier, char const* entry)
+        {
+            std::unordered_map<std::string, vk::UniqueShaderModule>::const_iterator iter;
+
+            //
+            // take exclusive lock
+            // only one thread can read (and potentially create a shader module at a time)
+            // [ contention ]
+            //std::lock_guard<std::shared_mutex> lck(*m_mtxModules);
+            // NOTE: CreateShaderModule is protected by SubmitKernel
+
+            //
+            // check existence of the shader module
+            iter = m_modules.find(entry);
+            if(iter != m_modules.end())
+            {
+            #ifdef VUDA_DEBUG_ENABLED
+                //
+                // in debug mode check whether there exists a name clash between shader module entry names
+                auto debug_iter = m_debug_module_entries.find(identifier);
+                if(debug_iter == m_debug_module_entries.end())
+                {
+                    std::stringstream ostr; ostr << "shader module entry name '" << entry << "' clashes with a different binary!" << std::endl;
+                    throw std::runtime_error(ostr.str());
+                }
+            #endif
+
+                return iter->second.get();
+            }
+
+            //
+            // determine whether the identifier is a binary else treat it as a filename.
+            size_t bytesize = identifier.size();
+                
+            // NOTE: keep bin in scope when setting the pointer to binary
+            std::vector<char> bin;
+            const uint32_t* binary;
+
+            //
+            // create shader module
+            if(bytesize >= 4 && identifier[0] == 0x03 && identifier[1] == 0x02 && identifier[2] == 0x23 && identifier[3] == 0x07)
+            {
+                //assert(program[0] == 0x03 && program[1] == 0x02 && program[2] == 0x23 && program[3] == 0x07); // "vuda: spir-v data is wrong, rebuild or check binaries"
+                //assert(kernelByteSize % 4 == 0);// "vuda: spir-v data is wrong, codesize must be a multiple of 4"
+                binary = reinterpret_cast<const uint32_t*>(identifier.c_str());                    
+            #ifdef VUDA_DEBUG_ENABLED
+                m_debug_module_entries.try_emplace(identifier, entry);
+            #endif
+            }
+            else
+            {
+                bin = ReadShaderModuleFromFile(identifier);
+                binary = reinterpret_cast<const uint32_t*>(bin.data());
+                bytesize = bin.size();
+            #ifdef VUDA_DEBUG_ENABLED
+                m_debug_module_entries.try_emplace(std::string(bin.begin(), bin.end()), entry);
+            #endif
+            }
+
+            auto pair = m_modules.try_emplace(entry, m_device->createShaderModuleUnique(vk::ShaderModuleCreateInfo({}, bytesize, binary)));
+            iter = pair.first;
+            return iter->second.get();            
+        }
+
+        inline std::vector<char> logical_device::ReadShaderModuleFromFile(const std::string& filename) const
+        {
+            std::ifstream file(filename, std::ios::ate | std::ios::binary);
+
+            if(!file.is_open())
+                throw std::runtime_error("Failed to open shader file!");
+
+            size_t fileSize = (size_t)file.tellg();
+            std::vector<char> buffer(fileSize);
+
+            file.seekg(0);
+            file.read(buffer.data(), fileSize);
+
+            file.close();
+            return buffer;
         }
 
     } //namespace detail

@@ -143,17 +143,17 @@ namespace vuda
             //
             // get
 
-            std::array<vk::DescriptorSetLayoutBinding, memptrCount> getBindings(void)
+            const std::array<vk::DescriptorSetLayoutBinding, memptrCount>& getBindings(void) const
             {
                 return m_bindings;
             }
 
-            std::array<vk::DescriptorBufferInfo, memptrCount> getBufferDesc(void)
+            const std::array<vk::DescriptorBufferInfo, memptrCount>& getBufferDesc(void) const
             {
                 return m_bufferdescs;
             }
 
-            auto& getSpecials(void)
+            const auto& getSpecials(void) const
             {
                 return m_tl_special.sp;
             }

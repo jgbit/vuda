@@ -71,6 +71,7 @@ int main(void)
 
 | Date | Changes |
 | :--- | :------ |
+| 23/11/2019 | support for embedded kernels, embedded kernel sample |
 | 15/10/2019 | internal state and memory allocation improvements, shared memory sample |
 | 20/12/2018 | data structure for managing descriptor set and command buffer pool allocations |
 | 25/11/2018 | Makefiles and gcc conformity |

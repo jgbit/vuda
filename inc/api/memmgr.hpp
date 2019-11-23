@@ -72,8 +72,13 @@ namespace vuda
         return vudaSuccess;        
     }
 
-    //__host__ ​
-    inline error_t memcpy(void* dst, const void* src, const size_t count, const memcpyKind kind, const uint32_t stream=0)
+    /**
+     * __host__
+     * Copies count bytes from the memory area pointed to by src to the memory area pointed to by dst,
+     * where kind specifies the direction of the copy, and must be one of
+     * ::memcpyHostToHost, ::memcpyHostToDevice, ::memcpyDeviceToHost, ::memcpyDeviceToDevice, or ::memcpyDefault.
+     */
+    inline error_t memcpy(void* dst, const void* src, const size_t count, const memcpyKind kind, const stream_t stream=0)
     {
         const std::thread::id tid = std::this_thread::get_id();
 

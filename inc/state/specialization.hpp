@@ -146,14 +146,14 @@ namespace vuda
 
             //
             // get specializationization info struct        
-            vk::SpecializationInfo& info(void)
+            const vk::SpecializationInfo& info(void) const
             {
                 return m_info;
             }
 
             //
             // get copy of data
-            std::array<uint8_t, m_bytesize> data(void)
+            const std::array<uint8_t, m_bytesize>& data(void) const
             {
                 return m_data;
             }
@@ -161,7 +161,7 @@ namespace vuda
             //
             // get entry
             template <size_t index>
-            auto get() const
+            const auto get() const
             {
                 type<index> value;
                 std::memcpy(&value, m_data.data() + offset0<index>, sizeof(type<index>));
