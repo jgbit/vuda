@@ -13,19 +13,19 @@ namespace vuda
         {
         public:
 
-            kernel_interface(const std::string& filename, const std::string& entryName) :
-                m_fileName(filename),
-                m_entryName(entryName)
+            kernel_interface(const std::string& entryName, const vk::ShaderModule& shaderModule) :
+                m_entryName(entryName),
+                m_shaderModule(shaderModule)
             {
 
             }
 
             //virtual bool UpdateDescriptorAndCommandBuffer(const vk::UniqueDevice& device, const vk::UniqueCommandBuffer& commandBuffer, const std::vector<vk::DescriptorBufferInfo>& descriptorBufferInfos, const uint8_t* specialSignature) const = 0;                
 
-            std::string GetFileName(void) const
+            /*std::string GetFileName(void) const
             {
                 return m_fileName;
-            }
+            }*/
 
             std::string GetEntryName(void) const
             {
@@ -33,10 +33,14 @@ namespace vuda
             }
 
         protected:
+            
             //
-            // identifiers
-            std::string m_fileName;
+            // identifiers            
             std::string m_entryName;
+
+            //
+            // shader module                        
+            vk::ShaderModule m_shaderModule;
         };
 
         template <size_t specializationByteSize>
@@ -61,28 +65,23 @@ namespace vuda
             // (3) descriptor buffer info
             //
 
-            template <typename... specialTypes>
-            kernelprogram(const vk::UniqueDevice& device, const std::string& filename, const std::string& entryName, const std::vector<vk::DescriptorSetLayoutBinding>& bindings, specialization<specialTypes...>& specials);
+            template <typename... specialTypes, size_t bindingSize>
+            kernelprogram(const vk::UniqueDevice& device, const vk::ShaderModule& shaderModule, const std::string& entryName, const std::array<vk::DescriptorSetLayoutBinding, bindingSize>& bindings, const specialization<specialTypes...>& specials);
 
-            template <typename... specialTypes>
-            bool UpdateDescriptorAndCommandBuffer(const vk::UniqueDevice& device, const vk::UniqueCommandBuffer& commandBuffer, const std::vector<vk::DescriptorBufferInfo>& descriptorBufferInfos, specialization<specialTypes...>& specials, const dim3 blocks) const;            
-
-        private:
-
-            template <typename... specialTypes>
-            vk::Pipeline GetSpecializedPipeline(const vk::UniqueDevice& device, specialization<specialTypes...>& specials) const;
-
-            template <typename... specialTypes>
-            vk::Pipeline CreatePipeline(const vk::UniqueDevice& device, specialization<specialTypes...>& specials) const;
-
-            std::vector<char> ReadFile(const std::string& filename) const;
+            template <typename... specialTypes, size_t bindingSize>
+            bool UpdateDescriptorAndCommandBuffer(const vk::UniqueDevice& device, const vk::UniqueCommandBuffer& commandBuffer, const std::array<vk::DescriptorBufferInfo, bindingSize>& descriptorBufferInfos, const specialization<specialTypes...>& specials, const dim3 blocks) const;
 
         private:
 
-            //
-            // shader module
-            std::vector<char> m_code;
-            vk::UniqueShaderModule m_shaderModule;
+            template <typename... specialTypes>
+            vk::Pipeline GetSpecializedPipeline(const vk::UniqueDevice& device, const specialization<specialTypes...>& specials) const;
+
+            template <typename... specialTypes>
+            vk::Pipeline CreatePipeline(const vk::UniqueDevice& device, const specialization<specialTypes...>& specials) const;
+
+            //std::vector<char> ReadFile(const std::string& filename) const;
+
+        private:
 
             //
             // descriptor set layout

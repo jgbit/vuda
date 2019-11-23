@@ -37,9 +37,8 @@ namespace vuda
                     return i;
                 }
             }
-
-            return -1;
-            //throw std::runtime_error("Failed to find suitable memory type!");
+                        
+            throw std::runtime_error("vuda: failed to find suitable memory type!");
         }
 
         inline uint32_t vudaGetNumberOfMemoryTypes(const vk::PhysicalDevice& device, std::vector<uint32_t>& memoryIndices)

@@ -11,19 +11,6 @@
 #include <cstdlib>
 #include <random>
 
-int preloadkernel(void)
-{
-    /*
-        in vuda a pre-load shader functionality is provided
-        as the kernels usually are stored in spv files
-
-        there will be no performance-wise gain in using this functionality
-        except the load can be diverted elsewhere (e.g. start of program)
-    */
-
-    return 0;
-}
-
 int blocks_and_threads(const std::thread::id tid)
 {
     //
@@ -62,6 +49,7 @@ int blocks_and_threads(const std::thread::id tid)
             // reset all
             memset(c, 0, N * sizeof(int));
 
+            //
             // generate a random unsigned integer
             uint32_t rndnum  = dist(mt);
 
@@ -132,8 +120,9 @@ int main()
     /*std::cout << "done" << std::endl;
     std::cin.get();*/
 
-#ifndef NDEBUG
-    system("pause");
+#ifndef NDEBUG    
+    std::cout << "done." << std::endl;
+    std::cin.get();
 #endif
     return EXIT_SUCCESS;
 }

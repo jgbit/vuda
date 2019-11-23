@@ -128,7 +128,7 @@ namespace vuda
                 m_commandBuffers[stream]->resetQueryPool(m_queryPool.get(), queryID, 1);
             }*/
 
-            void memcpyDevice(const vk::UniqueDevice& device, const vk::Buffer& bufferDst, const vk::DeviceSize dstOffset, const vk::Buffer& bufferSrc, const vk::DeviceSize srcOffset, const vk::DeviceSize size, const vk::Queue& queue, const uint32_t stream) const
+            void memcpyDevice(const vk::UniqueDevice& device, const vk::Buffer& bufferDst, const vk::DeviceSize dstOffset, const vk::Buffer& bufferSrc, const vk::DeviceSize srcOffset, const vk::DeviceSize size, const vk::Queue& queue, const stream_t stream) const
             {
                 //
                 // lock access to the streams commandbuffer
@@ -184,8 +184,8 @@ namespace vuda
                 //std::cout << ostr.str();            
             }
 
-            template <size_t specializationByteSize, typename... specialTypes>
-            void UpdateDescriptorAndCommandBuffer(const vk::UniqueDevice& device, const kernelprogram<specializationByteSize>& kernel, specialization<specialTypes...>& specials, const std::vector<vk::DescriptorBufferInfo>& bufferDescriptors, const dim3 blocks, const uint32_t stream) const
+            template <size_t specializationByteSize, typename... specialTypes, size_t bindingSize>
+            void UpdateDescriptorAndCommandBuffer(const vk::UniqueDevice& device, const kernelprogram<specializationByteSize>& kernel, const specialization<specialTypes...>& specials, const std::array<vk::DescriptorBufferInfo, bindingSize>& bufferDescriptors, const dim3 blocks, const stream_t stream) const
             {
                 //
                 // lock access to the streams commandbuffer
@@ -258,7 +258,7 @@ namespace vuda
                 }*/
             }
 
-            void Execute(const vk::UniqueDevice& device, const vk::Queue& queue, const uint32_t stream) const
+            void Execute(const vk::UniqueDevice& device, const vk::Queue& queue, const stream_t stream) const
             {
                 //
                 // lock access to the streams commandbuffer
@@ -267,7 +267,7 @@ namespace vuda
                 ExecuteQueue(device, queue, stream);
             }
 
-            /*void Wait(const vk::UniqueDevice& device, const vk::Queue& queue, const uint32_t stream) const
+            /*void Wait(const vk::UniqueDevice& device, const vk::Queue& queue, const stream_t stream) const
             {
                 //
                 // lock access to the streams commandbuffer
@@ -276,7 +276,7 @@ namespace vuda
                 WaitAndReset(device, stream);
             }*/
 
-            void ExecuteAndWait(const vk::UniqueDevice& device, const vk::Queue& queue, const uint32_t stream) const
+            void ExecuteAndWait(const vk::UniqueDevice& device, const vk::Queue& queue, const stream_t stream) const
             {
                 //
                 // lock access to the streams commandbuffer
@@ -293,7 +293,7 @@ namespace vuda
                 -  assumes m_mtxCommandBuffers[stream] is locked
             */
 
-            void CheckStateAndBeginCommandBuffer(const vk::UniqueDevice& device, const uint32_t stream) const
+            void CheckStateAndBeginCommandBuffer(const vk::UniqueDevice& device, const stream_t stream) const
             {
                 //
                 // assumes m_mtxCommandBuffers[stream] is locked
@@ -318,7 +318,7 @@ namespace vuda
                 }
             }
 
-            void BeginRecordingCommandBuffer(const uint32_t stream) const
+            void BeginRecordingCommandBuffer(const stream_t stream) const
             {
                 //
                 // assumes m_mtxCommandBuffers[stream] is locked
@@ -331,7 +331,7 @@ namespace vuda
                 m_commandBufferState[stream] = cbRecording;
             }
 
-            void ExecuteQueue(const vk::UniqueDevice& device, const vk::Queue& queue, const uint32_t stream) const
+            void ExecuteQueue(const vk::UniqueDevice& device, const vk::Queue& queue, const stream_t stream) const
             {
                 //
                 // assumes m_mtxCommandBuffers[stream] is locked
@@ -353,7 +353,7 @@ namespace vuda
                 }
             }
 
-            void WaitAndReset(const vk::UniqueDevice& device, const uint32_t stream) const
+            void WaitAndReset(const vk::UniqueDevice& device, const stream_t stream) const
             {
                 //
                 // assumes m_mtxCommandBuffers[stream] is locked

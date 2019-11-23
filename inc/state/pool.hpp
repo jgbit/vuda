@@ -67,18 +67,21 @@ namespace vuda
                 m_device(device),
                 //
                 // allocate descriptor pool
-                m_descriptorPoolSize(vk::DescriptorPoolSize(vk::DescriptorType::eStorageBuffer, binding_size)),
-                m_descriptorPool(device.createDescriptorPool(vk::DescriptorPoolCreateInfo(vk::DescriptorPoolCreateFlags(), (uint32_t)capacity, 1, &m_descriptorPoolSize))),
+                // [ for now, kernels can only take eStorageBuffer as input, the pool therefore only have one descriptor type ]
+                m_descriptorPoolSize(vk::DescriptorPoolSize(vk::DescriptorType::eStorageBuffer, binding_size * static_cast<uint32_t>(capacity))),
+                m_descriptorPool(device.createDescriptorPool(vk::DescriptorPoolCreateInfo(vk::DescriptorPoolCreateFlags(), static_cast<uint32_t>(capacity), 1, &m_descriptorPoolSize))),
 
                 //
-                // allocate descriptor sets                
-                m_descriptorSets(device.allocateDescriptorSets(vk::DescriptorSetAllocateInfo(m_descriptorPool, (uint32_t)capacity, std::vector<vk::DescriptorSetLayout>(capacity, descriptorSetLayout).data())))
+                // allocate descriptor sets
+                m_descriptorSets(device.allocateDescriptorSets(vk::DescriptorSetAllocateInfo(m_descriptorPool, static_cast<uint32_t>(capacity), std::vector<vk::DescriptorSetLayout>(capacity, descriptorSetLayout).data())))
             {
                 /*
                     - VkDescriptorSets are allocated from a "parent" VkDescriptorPool
                     - descriptors allocated in different threads must come from different pools
                     - But VkDescriptorSets from the same pool can be written to by different threads
                 */
+
+                //std::cout << "vuda:: descriptorPool capacity: " << capacity << std::endl;
             }
 
             ~descriptor_pool_allocator()
@@ -342,7 +345,7 @@ namespace vuda
                         m_used = 0;
                         // release lock (let the stuck threads have a go)
                         m_creation_lock.clear(std::memory_order_release);
-                    }                    
+                    }
                 }
 
                 // it is safe to request the data at the unique index
