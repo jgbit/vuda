@@ -117,9 +117,9 @@ namespace vuda
             // shader modules
             //std::unique_ptr<std::shared_mutex> m_mtxModules;
             std::unordered_map<std::string, vk::UniqueShaderModule> m_modules;
-            #ifdef VUDA_DEBUG_ENABLED
+            /*#ifdef VUDA_DEBUG_ENABLED
             std::map<std::string, std::string> m_debug_module_entries;
-            #endif
+            #endif*/
 
             //
             // compute kernels

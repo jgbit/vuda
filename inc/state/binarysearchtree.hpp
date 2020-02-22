@@ -245,26 +245,49 @@ namespace vuda
 
             // tree search iteratively
             NodeType* search_range(NodeType* node, const KeyType key) const
-            {   
-                //           
+            {
+                //
                 // NOTE - ptrdiff_t may not be large enough to hold the difference between memory adresses.
+                //std::ptrdiff_t diffkey;
+                //std::size_t mindiffkey = std::numeric_limits<std::size_t>::max(); // std::numeric_limits<std::ptrdiff_t>::max();
 
-                std::ptrdiff_t diffkey;
-                std::ptrdiff_t mindiffkey = std::numeric_limits<std::ptrdiff_t>::max();
+                std::int8_t diffkey_sign;
+                std::size_t absdiffkey;                
+                std::int8_t minkey_sign = 1;
                 std::size_t minkey = std::numeric_limits<std::size_t>::max();
                 NodeType* minnode = nullptr;
             
+                //
+                // find the closest node wrt. key
                 while(node != nullptr)
                 {
-                    diffkey = static_cast<const char*>(key) - static_cast<const char*>(node->key());
-
-                    if(diffkey == 0)
+                    //
+                    // diffkey = static_cast<const char*>(key) - static_cast<const char*>(node->key());
+                    // store the difference between the keys with full precision
+                    if(key < node->key())
+                    {
+                        // key is to the left of the node key
+                        absdiffkey = static_cast<const char*>(node->key()) - static_cast<const char*>(key);
+                        diffkey_sign = -1;
+                    }
+                    else
+                    {
+                        // key is to the right of the node key
+                        absdiffkey = static_cast<const char*>(key) - static_cast<const char*>(node->key());
+                        diffkey_sign = 1;                        
+                    }
+                    
+                    //
+                    // return the node if the key is an exact match
+                    if(absdiffkey == 0)
                         return node;
 
-                    if((size_t)abs(diffkey) < minkey)
+                    //
+                    // store absolute minimum distance and its sign
+                    if(absdiffkey < minkey)
                     {
-                        mindiffkey = diffkey;
-                        minkey = abs(diffkey);
+                        minkey_sign = diffkey_sign;
+                        minkey = absdiffkey;
                         minnode = node;
                     }
 
@@ -273,30 +296,34 @@ namespace vuda
                     else
                         node = node->right();
                 }
-
-                if(mindiffkey < 0)
+                                
+                //
+                // when minkey is negative we find the predecessor
+                if(minkey_sign < 0)
                 {
                     //std::cout << "return successor: " << mindiffkey << std::endl;
                     node = predecessor(minnode);
 
-                    if(node == nullptr) // this is left most node (minimum node)
+                    //
+                    // this is left most node (minimum node) - the key is not in range of any node!
+                    if(node == nullptr)
                         return nullptr;
-
-                    //if(node != nullptr)
-                        //int break_point = 1;
                 }
                 else
                 {
+                    //
+                    // else the key is to the right and we keep the minnode
                     node = minnode;
-
                     assert(node);
                 }
 
                 //
-                // check if we are out of bound
-                diffkey = static_cast<const char*>(key) - static_cast<const char*>(node->key());
-                assert(diffkey >= 0);
-                if((size_t)abs(diffkey) < minnode->range())
+                // now that we have the closest node and the key is ensured to be to the right of the node (minkey_sign = 1)
+                // we can check if we are out of bound 
+                absdiffkey = static_cast<const char*>(key) - static_cast<const char*>(node->key());
+                
+                //assert(diffkey >= 0); // absdiffkey is ensured to be positive
+                if(absdiffkey < minnode->range())
                 {
                     //std::cout << "return minnode: " << mindiffkey << std::endl;
                     return node;

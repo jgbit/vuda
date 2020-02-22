@@ -362,6 +362,10 @@ namespace vuda
         {
             assert(stream >= 0 && stream < m_queueComputeCount);
 
+            //
+            // NOTE: for now, we use a fairly naive phrase as a "unique" identifier in order to accommodate embedded kernels
+            const std::string identifier_entry(identifier + "::" + entry);
+
             while(true)
             {
                 kernelprogram<specialization<specialTypes...>::m_bytesize>* kernel = nullptr;
@@ -371,7 +375,7 @@ namespace vuda
                 // check if the kernel is already created (shared lock)
                 {
                     std::shared_lock<std::shared_mutex> lck(*m_mtxKernels);
-                    it = m_kernels.find(entry);
+                    it = m_kernels.find(identifier_entry);
                     if(it != m_kernels.end())
                     {
                         kernel = static_cast<kernelprogram<specialization<specialTypes...>::m_bytesize>*>((*it).second.get());
@@ -408,8 +412,8 @@ namespace vuda
 
                     //
                     // retrieve shader module
-                    vk::ShaderModule shaderModule = CreateShaderModule(identifier, entry);
-                    m_kernels.try_emplace(entry, std::make_unique<kernelprogram<specialization<specialTypes...>::m_bytesize>>(m_device, shaderModule, entry, bindings, specials));
+                    vk::ShaderModule shaderModule = CreateShaderModule(identifier, entry);                    
+                    m_kernels.try_emplace(identifier_entry, std::make_unique<kernelprogram<specialization<specialTypes...>::m_bytesize>>(m_device, shaderModule, entry, bindings, specials));
                     //assert(pair.second);
 
                     /*std::stringstream ostr;
@@ -833,12 +837,14 @@ namespace vuda
             //std::lock_guard<std::shared_mutex> lck(*m_mtxModules);
             // NOTE: CreateShaderModule is protected by SubmitKernel
 
+            const std::string identifier_entry(identifier + "::" + entry);
+
             //
             // check existence of the shader module
-            iter = m_modules.find(entry);
+            iter = m_modules.find(identifier_entry);
             if(iter != m_modules.end())
             {
-            #ifdef VUDA_DEBUG_ENABLED
+            /*#ifdef VUDA_DEBUG_ENABLED
                 //
                 // in debug mode check whether there exists a name clash between shader module entry names
                 auto debug_iter = m_debug_module_entries.find(identifier);
@@ -847,7 +853,7 @@ namespace vuda
                     std::stringstream ostr; ostr << "shader module entry name '" << entry << "' clashes with a different binary!" << std::endl;
                     throw std::runtime_error(ostr.str());
                 }
-            #endif
+            #endif*/
 
                 return iter->second.get();
             }
@@ -867,21 +873,21 @@ namespace vuda
                 //assert(program[0] == 0x03 && program[1] == 0x02 && program[2] == 0x23 && program[3] == 0x07); // "vuda: spir-v data is wrong, rebuild or check binaries"
                 //assert(kernelByteSize % 4 == 0);// "vuda: spir-v data is wrong, codesize must be a multiple of 4"
                 binary = reinterpret_cast<const uint32_t*>(identifier.c_str());                    
-            #ifdef VUDA_DEBUG_ENABLED
+            /*#ifdef VUDA_DEBUG_ENABLED
                 m_debug_module_entries.try_emplace(identifier, entry);
-            #endif
+            #endif*/
             }
             else
             {
                 bin = ReadShaderModuleFromFile(identifier);
                 binary = reinterpret_cast<const uint32_t*>(bin.data());
                 bytesize = bin.size();
-            #ifdef VUDA_DEBUG_ENABLED
+            /*#ifdef VUDA_DEBUG_ENABLED
                 m_debug_module_entries.try_emplace(std::string(bin.begin(), bin.end()), entry);
-            #endif
+            #endif*/
             }
 
-            auto pair = m_modules.try_emplace(entry, m_device->createShaderModuleUnique(vk::ShaderModuleCreateInfo({}, bytesize, binary)));
+            auto pair = m_modules.try_emplace(identifier_entry, m_device->createShaderModuleUnique(vk::ShaderModuleCreateInfo({}, bytesize, binary)));
             iter = pair.first;
             return iter->second.get();            
         }
