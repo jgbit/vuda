@@ -254,7 +254,7 @@ namespace vuda
                 std::int8_t diffkey_sign;
                 std::size_t absdiffkey;                
                 std::int8_t minkey_sign = 1;
-                std::size_t minkey = std::numeric_limits<std::size_t>::max();
+                std::size_t minkey = (std::numeric_limits<std::size_t>::max)();
                 NodeType* minnode = nullptr;
             
                 //

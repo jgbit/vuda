@@ -205,7 +205,7 @@ namespace vuda
                 // allocate buffers
                 m_commandBuffers(device.allocateCommandBuffers(vk::CommandBufferAllocateInfo(m_commandPool, vk::CommandBufferLevel::ePrimary, (uint32_t)capacity))),
                 // allocate command buffer ext
-                m_cbext(command_buffer_ext(device, m_commandPool), capacity)
+                m_cbext(capacity, command_buffer_ext(device, m_commandPool))
             {
                 for(size_t i = 0; i < capacity; ++i)
                     m_cbext[i].set_command_buffer(m_commandBuffers[i]);

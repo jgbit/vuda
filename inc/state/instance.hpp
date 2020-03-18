@@ -42,7 +42,7 @@ namespace vuda
             static vk::DispatchLoaderDynamic& getDispatchLoaderDynamic(const vk::UniqueInstance& instance)
             {
                 // This dispatch class will fetch all function pointers through the passed instance
-                static vk::DispatchLoaderDynamic local_dldy(instance.get());
+                static vk::DispatchLoaderDynamic local_dldy(instance.get(), vkGetInstanceProcAddr);
                 return local_dldy;
             }
 

@@ -249,7 +249,7 @@ namespace vuda
                 //
                 //
                 vk::DeviceSize device_memory_size = findDeviceLocalMemorySize(physDevice);
-                m_defaultChunkSize = std::min(device_memory_size / 16, m_defaultChunkSize);
+                m_defaultChunkSize = std::min<vk::DeviceSize>(device_memory_size / 16, m_defaultChunkSize);
 
                 //
                 // types of memory
