@@ -37,8 +37,9 @@ namespace vuda
                     return i;
                 }
             }
-                        
-            throw std::runtime_error("vuda: failed to find suitable memory type!");
+
+            // should return -1 on failure, such that findMemoryType_* gets to try to find a fallback candidate (guarenteed to exist by the Vulkan specification)
+            return -1;
         }
 
         inline uint32_t vudaGetNumberOfMemoryTypes(const vk::PhysicalDevice& device, std::vector<uint32_t>& memoryIndices)
