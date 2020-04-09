@@ -135,7 +135,7 @@ namespace vuda
             //
             // buffers            
             default_storage_node* m_storageBST_root;
-            std::vector<default_storage_node*> m_storageBST;
+            //std::vector<default_storage_node*> m_storageBST;
             bst<default_storage_node, void*> m_storage;
 
             //

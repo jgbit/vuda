@@ -33,13 +33,13 @@ namespace vuda
             {
             }
 
-            void set_data(default_storage_node* node)
+            /*void set_data(default_storage_node* node) final
             {
                 // copy node's satellite data            
                 m_size = node->m_size;
                 m_ptrMemBlock = node->m_ptrMemBlock;
                 m_hostVisible = node->m_hostVisible;
-            }
+            }*/
 
             virtual void destroy(void)
             {
@@ -57,14 +57,14 @@ namespace vuda
             //
             // get
 
-            void print(int depth = 0) const
+            std::ostringstream print(int depth = 0) const
             {
                 std::ostringstream ostr;
                 ostr << std::this_thread::get_id() << ": ";
                 for(int i = 0; i < depth; ++i)
                     ostr << "-";
                 ostr << key() << " " << (uintptr_t)key() << " " << range() << " " << (uintptr_t)key() + range() << std::endl;
-                std::cout << ostr.str();
+                return ostr;
             }
 
             bool isHostVisible(void) const

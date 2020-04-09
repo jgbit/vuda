@@ -33,24 +33,68 @@ namespace vuda
     /*__host__*/
     inline error_t getDeviceProperties(deviceProp* prop, int device)
     {
+        if(device < 0 || device >= (int)detail::Instance::GetPhysicalDeviceCount())
+            return vudaErrorInvalidDevice;
+
         vk::PhysicalDevice physDevice = detail::Instance::GetPhysicalDevice(device);
 
         vk::PhysicalDeviceProperties deviceProperties;
         physDevice.getProperties(&deviceProperties);
-                
+
+        /* vendorID
+            0x1002 - AMD
+            0x1010 - ImgTec
+            0x10DE - NVIDIA
+            0x13B5 - ARM
+            0x5143 - Qualcomm
+            0x8086 - INTEL
+        */
+
         for(uint32_t i=0; i<256; ++i)
             prop->name[i] = deviceProperties.deviceName[i];
-         
-        //prop->totalGlobalMem = deviceProperties.limits.;
-        //prop->sharedMemPerBlock = 0;
 
+        // integrated gpu
+        if(deviceProperties.deviceType == vk::PhysicalDeviceType::eIntegratedGpu)
+            prop->integrated = 1;
+        else
+            prop->integrated = 0; // eDiscreteGpu
+
+        // find the size of the device-local heap memory        
+        prop->totalGlobalMem = (size_t)vuda::detail::findDeviceLocalMemorySize(physDevice);
+
+        // maximum shared memory
+        prop->sharedMemPerBlock = deviceProperties.limits.maxComputeSharedMemorySize;
+        
+        //
+        // device threads and blocks
+        prop->maxThreadsPerBlock = deviceProperties.limits.maxComputeWorkGroupInvocations;
         for(uint32_t i=0; i<3; ++i)
         { 
-            prop->maxGridSize[i] = deviceProperties.limits.maxComputeWorkGroupCount[i];
             prop->maxThreadsDim[i] = deviceProperties.limits.maxComputeWorkGroupSize[i];
+            prop->maxGridSize[i] = deviceProperties.limits.maxComputeWorkGroupCount[i];            
         }
-        prop->maxThreadsPerBlock = deviceProperties.limits.maxComputeWorkGroupInvocations;
-        
+
+        prop->computeMode = 0; // cudaComputeModeDefault
+        prop->canMapHostMemory = 1;
+        prop->concurrentKernels = 1;
+        prop->deviceOverlap = 1;
+        prop->streamPrioritiesSupported = 1;
+
+        // max texture dimensions
+        prop->maxTexture1D = deviceProperties.limits.maxImageDimension1D;
+        prop->maxTexture2D[0] = deviceProperties.limits.maxImageDimension2D;
+        prop->maxTexture2D[1] = deviceProperties.limits.maxImageDimension2D;
+        prop->maxTexture3D[0] = deviceProperties.limits.maxImageDimension3D;
+        prop->maxTexture3D[1] = deviceProperties.limits.maxImageDimension3D;
+        prop->maxTexture3D[2] = deviceProperties.limits.maxImageDimension3D;
+
+        prop->maxTexture1DLayered[0] = deviceProperties.limits.maxImageDimension1D;
+        prop->maxTexture1DLayered[1] = deviceProperties.limits.maxImageArrayLayers;
+
+        prop->maxTexture2DLayered[0] = deviceProperties.limits.maxImageDimension2D;
+        prop->maxTexture2DLayered[1] = deviceProperties.limits.maxImageDimension2D;
+        prop->maxTexture2DLayered[2] = deviceProperties.limits.maxImageArrayLayers;
+
         return vudaSuccess;
     }
 
@@ -64,7 +108,7 @@ namespace vuda
         const vk::PhysicalDevice& physDevice = detail::Instance::GetPhysicalDevice(device);
 
         //
-        // get the logival device from the vuda instance        
+        // get the logical device from the vuda instance        
         detail::logical_device* logicalDevice = detail::interface_logical_devices::create(physDevice, device);
 
         //

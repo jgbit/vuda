@@ -35,6 +35,8 @@ namespace vuda
         // allocate mem on the device
         if(flags == hostAllocDefault)
             tinfo->GetLogicalDevice()->mallocHost(pHost, size);
+        /*else if(flags == hostAllocPortable)
+        else if(flags == hostAllocMapped)*/
         else if(flags == hostAllocWriteCombined)
             tinfo->GetLogicalDevice()->hostAlloc(pHost, size);
         else

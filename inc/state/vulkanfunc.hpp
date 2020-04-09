@@ -6,13 +6,51 @@ namespace vuda
     {
 
         /*
-            specific retrieve functions that extends the cuda interface starts with vuda        
+            specific retrieve functions from Vulkan
         */
+                
+        inline uint32_t vudaGetFamilyQueueIndex(const std::vector<vk::QueueFamilyProperties>& queueFamilyProperties, const vk::QueueFlags queueFlags)
+        {
+            struct FamilyQueueCandidate
+            {
+                FamilyQueueCandidate(const vk::QueueFlags inc, const vk::QueueFlags exc) : m_include(inc), m_exclude(exc) {}
+                vk::QueueFlags m_include;
+                vk::QueueFlags m_exclude;
+            };
+
+            const std::vector<FamilyQueueCandidate> candidates = {
+                FamilyQueueCandidate(vk::QueueFlagBits::eCompute | vk::QueueFlagBits::eTransfer, vk::QueueFlagBits::eGraphics),
+                FamilyQueueCandidate(vk::QueueFlagBits::eTransfer, vk::QueueFlagBits::eCompute | vk::QueueFlagBits::eGraphics),
+                FamilyQueueCandidate(queueFlags, vk::QueueFlags())
+            };
+
+            for(const FamilyQueueCandidate& fqc : candidates)
+            {
+                //
+                // look for a dedicated family of queues with included flags, e.g. compute and transfer (and without excluded flags, e.g. graphics)
+                if((queueFlags & fqc.m_include) == queueFlags)
+                {
+                    size_t queueFamilyIndex = std::distance(queueFamilyProperties.begin(), std::find_if(queueFamilyProperties.begin(), queueFamilyProperties.end(),
+                        [fqc](vk::QueueFamilyProperties const& qfp)
+                    {
+                        bool test0 = (qfp.queueFlags & fqc.m_include) == fqc.m_include;
+                        bool test1 = (qfp.queueFlags & fqc.m_exclude) == vk::QueueFlags();
+
+                        return test0 && test1;
+                    }));
+
+                    if(queueFamilyIndex < queueFamilyProperties.size())
+                        return static_cast<uint32_t>(queueFamilyIndex);
+                }
+            }
+
+            throw std::runtime_error("vuda: could not find any family queue with all flags requested!");
+        }
 
         /*
             https://www.khronos.org/registry/vulkan/specs/1.1-extensions/man/html/VkPhysicalDeviceMemoryProperties.html
         */
-        inline int32_t vudaFindMemoryType(const vk::PhysicalDevice& device, uint32_t typeFilter, vk::MemoryPropertyFlags properties)
+        inline int32_t vudaFindMemoryType(const vk::PhysicalDevice& device, const uint32_t typeFilter, const vk::MemoryPropertyFlags properties)
         {
             vk::PhysicalDeviceMemoryProperties deviceMemoryProperties;
             device.getMemoryProperties(&deviceMemoryProperties);
@@ -38,7 +76,7 @@ namespace vuda
                 }
             }
 
-            // should return -1 on failure, such that findMemoryType_* gets to try to find a fallback candidate (guarenteed to exist by the Vulkan specification)
+            // should return -1 on failure, such that findMemoryType_* gets to try to find a fallback candidate (guaranteed to exist by the Vulkan specification)
             return -1;
         }
 
@@ -80,7 +118,7 @@ namespace vuda
 
         inline uint32_t findMemoryType_Device(const vk::PhysicalDevice& physDevice, const vk::Device& device)
         {
-            const std::vector<vk::MemoryPropertyFlags>& candidates = {
+            const std::vector<vk::MemoryPropertyFlags> candidates = {
                 vk::MemoryPropertyFlags(memoryPropertiesFlags::eDeviceProperties),
                 vk::MemoryPropertyFlagBits::eDeviceLocal
             };
@@ -106,7 +144,7 @@ namespace vuda
 
         inline uint32_t findMemoryType_Host(const vk::PhysicalDevice& physDevice, const vk::Device& device)
         {
-            const std::vector<vk::MemoryPropertyFlags>& candidates = {
+            const std::vector<vk::MemoryPropertyFlags> candidates = {
                 vk::MemoryPropertyFlags(memoryPropertiesFlags::eHostProperties),
                 vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
             };
@@ -138,7 +176,7 @@ namespace vuda
                 There must be at least one memory type with the VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT bit set in its propertyFlags.
             */
 
-            const std::vector<vk::MemoryPropertyFlags>& candidates = { 
+            const std::vector<vk::MemoryPropertyFlags> candidates = {
                 vk::MemoryPropertyFlags(memoryPropertiesFlags::eCachedProperties),
                 vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
             };

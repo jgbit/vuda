@@ -1,18 +1,33 @@
-#ifndef _DEBUG 
-#define NDEBUG
-#endif
-#ifndef NDEBUG
+
+#if defined(__NVCC__)
+#include <cuda_runtime.h>
+#include <iostream>
+#else
+#if !defined(NDEBUG)
 #define VUDA_STD_LAYER_ENABLED
 #define VUDA_DEBUG_ENABLED
 #endif
+#include <vuda_runtime.hpp>
+#endif
 
-#include <iostream>
-#include <vuda.hpp>
+#if defined(__NVCC__)
+
+__global__ void add(const int* dev_a, const int* dev_b, int* dev_c, const int N)
+{
+    int tid = threadIdx.x + blockIdx.x * blockDim.x;    
+    while(tid < N)
+    {
+        dev_c[tid] = dev_a[tid] + dev_b[tid];
+        tid += blockDim.x * gridDim.x;
+    }
+}
+
+#endif
 
 int main(void)
 {
     // assign a device to the thread
-    vuda::setDevice(0);
+    cudaSetDevice(0);
     // allocate memory on the device
     const int N = 5000;
     int a[N], b[N], c[N];
@@ -22,19 +37,25 @@ int main(void)
         b[i] = i * i;
     }
     int *dev_a, *dev_b, *dev_c;
-    vuda::malloc((void**)&dev_a, N * sizeof(int));
-    vuda::malloc((void**)&dev_b, N * sizeof(int));
-    vuda::malloc((void**)&dev_c, N * sizeof(int));
+    cudaMalloc((void**)&dev_a, N * sizeof(int));
+    cudaMalloc((void**)&dev_b, N * sizeof(int));
+    cudaMalloc((void**)&dev_c, N * sizeof(int));
     // copy the arrays a and b to the device
-    vuda::memcpy(dev_a, a, N * sizeof(int), vuda::memcpyHostToDevice);
-    vuda::memcpy(dev_b, b, N * sizeof(int), vuda::memcpyHostToDevice);
+    cudaMemcpy(dev_a, a, N * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(dev_b, b, N * sizeof(int), cudaMemcpyHostToDevice);
     // run kernel (vulkan shader module)
-    const int stream_id = 0;
     const int blocks = 128;
     const int threads = 128;
+#if defined(__NVCC__)
+    //void *args[] = { (void*)&dev_a, (void*)&dev_b, (void*)&dev_c, (void*)&N };
+    //cudaLaunchKernel(add, blocks, threads, args, 0, stream_id);
+    add<<<blocks, threads>>>(dev_a, dev_b, dev_c, N);
+#else
+    const int stream_id = 0;
     vuda::launchKernel("add.spv", "main", stream_id, blocks, threads, dev_a, dev_b, dev_c, N);
+#endif
     // copy result to host
-    vuda::memcpy(c, dev_c, N * sizeof(int), vuda::memcpyDeviceToHost);
+    cudaMemcpy(c, dev_c, N * sizeof(int), cudaMemcpyDeviceToHost);
 
     // do something useful with the result in array c ...    
     for(int i = 0; i < N; ++i)
@@ -45,7 +66,7 @@ int main(void)
         }
 
     // free memory on device
-    vuda::free(dev_a);
-    vuda::free(dev_b);
-    vuda::free(dev_c);
+    cudaFree(dev_a);
+    cudaFree(dev_b);
+    cudaFree(dev_c);
 }

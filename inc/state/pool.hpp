@@ -58,7 +58,7 @@ namespace vuda
         /*
             descriptor set pool node
         */
-        template<size_t capacity, typename T>
+        template<uint32_t capacity, typename T>
         class descriptor_pool_allocator : public default_pool_allocator<capacity, T>
         {
         public:
@@ -68,12 +68,12 @@ namespace vuda
                 //
                 // allocate descriptor pool
                 // [ for now, kernels can only take eStorageBuffer as input, the pool therefore only have one descriptor type ]
-                m_descriptorPoolSize(vk::DescriptorPoolSize(vk::DescriptorType::eStorageBuffer, binding_size * static_cast<uint32_t>(capacity))),
-                m_descriptorPool(device.createDescriptorPool(vk::DescriptorPoolCreateInfo(vk::DescriptorPoolCreateFlags(), static_cast<uint32_t>(capacity), 1, &m_descriptorPoolSize))),
+                m_descriptorPoolSize(vk::DescriptorPoolSize(vk::DescriptorType::eStorageBuffer, binding_size * capacity)),
+                m_descriptorPool(device.createDescriptorPool(vk::DescriptorPoolCreateInfo(vk::DescriptorPoolCreateFlags(), capacity, 1, &m_descriptorPoolSize))),
 
                 //
                 // allocate descriptor sets
-                m_descriptorSets(device.allocateDescriptorSets(vk::DescriptorSetAllocateInfo(m_descriptorPool, static_cast<uint32_t>(capacity), std::vector<vk::DescriptorSetLayout>(capacity, descriptorSetLayout).data())))
+                m_descriptorSets(device.allocateDescriptorSets(vk::DescriptorSetAllocateInfo(m_descriptorPool, capacity, std::vector<vk::DescriptorSetLayout>(capacity, descriptorSetLayout).data())))
             {
                 /*
                     - VkDescriptorSets are allocated from a "parent" VkDescriptorPool

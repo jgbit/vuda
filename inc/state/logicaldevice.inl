@@ -65,7 +65,7 @@ namespace vuda
 
             m_queues.resize(m_queueComputeCount);
             for(uint32_t queue = 0; queue < m_queueComputeCount; ++queue)
-                m_queues[queue] = m_device->getQueue(0, queue);
+                m_queues[queue] = m_device->getQueue(m_queueFamilyIndex, queue);
 
             //
             // [ assume that there are only one queue family for now ]
@@ -278,11 +278,13 @@ namespace vuda
             // check whether the memory exists on the set device
             default_storage_node* node = m_storage.search(m_storageBST_root, devPtr);
             if(node == nullptr)
-                throw std::runtime_error("Failed to find memory on the specified device!");
+                throw std::runtime_error("vuda: Failed to find memory on the specified device!");
                 
             /*ostr << std::this_thread::get_id() << ": destroying memory with ptr: " << devPtr << ", node: " << node << std::endl;
             std::cout << ostr.str();
-            //m_storage.walk(m_storageBST_root);*/
+            //m_storage.walk(m_storageBST_root);
+            m_storage.walk_depth(m_storageBST_root);
+            std::cout << std::endl;*/
 
             //
             // destroy the satellite data on the node
@@ -294,13 +296,17 @@ namespace vuda
 
             //
             // remove the node from the bst storage tree data        
-            m_storageBST.erase(std::remove(m_storageBST.begin(), m_storageBST.end(), doomed), m_storageBST.end());
+            //m_storageBST.erase(std::remove(m_storageBST.begin(), m_storageBST.end(), doomed), m_storageBST.end());
 
             //
             // remove the spliced node from the heap
             // (should perhaps recycle nodes? we know there is an upper limit on allocations)
             delete doomed;
             //doomed = nullptr;
+
+            //
+            //m_storage.walk_depth(m_storageBST_root);
+            //std::cout << std::endl;
         }
 
         inline vk::DescriptorBufferInfo logical_device::GetBufferDescriptor(void* devPtr) const
@@ -324,8 +330,8 @@ namespace vuda
             vk::DeviceSize gOffset = node->GetOffset();
         
             // the offset must always be unsigned!
-            assert(static_cast<char*>(devPtr) >= static_cast<char*>(node->key()));
-            vk::DeviceSize offset = static_cast<char*>(devPtr) - static_cast<char*>(node->key());
+            assert(static_cast<const char*>(devPtr) >= static_cast<const char*>(node->key()));
+            vk::DeviceSize offset = static_cast<const char*>(devPtr) - static_cast<const char*>(node->key());
 
             // (1)
             vk::DeviceSize size = node->GetSize();
@@ -379,7 +385,7 @@ namespace vuda
                     if(it != m_kernels.end())
                     {
                         kernel = static_cast<kernelprogram<specialization<specialTypes...>::m_bytesize>*>((*it).second.get());
-
+                        
                         //
                         // every thread can look up its command pool in the list
                         std::shared_lock<std::shared_mutex> lckCmdPools(*m_mtxCmdPools);
@@ -809,11 +815,12 @@ namespace vuda
 
             //
             // push the node onto the bst storage tree data
-            m_storageBST.emplace_back(node);
+            //m_storageBST.emplace_back(node);
 
             //
             // insert the node in the bst tree
-            m_storage.insert_node(m_storageBST_root, m_storageBST.back());
+            //m_storage.insert_node(m_storageBST_root, m_storageBST.back());
+            m_storage.insert_node(m_storageBST_root, node);
 
             //
             // show storage tree

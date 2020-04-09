@@ -45,7 +45,7 @@ namespace vuda
     //
     // CUDA equivalents
 
-    enum enumvudaError { vudaSuccess = 0, vudaErrorNotReady = 1 };
+    enum enumvudaError { vudaSuccess = 0, vudaErrorInvalidDevice = 101 };
     enum memcpyKind { memcpyHostToHost = 0, memcpyHostToDevice = 1, memcpyDeviceToHost = 2, memcpyDeviceToDevice = 3 /*, memcpyDefault = 4*/ };
     enum enumHostAlloc { hostAllocDefault = 0, hostAllocPortable = 1, hostAllocMapped = 2, hostAllocWriteCombined = 3 };
 
@@ -53,7 +53,8 @@ namespace vuda
 
     typedef vk::Event event_t;
     typedef uint32_t stream_t;
-
+    //struct cudaUUID_t { char bytes[16]; };
+    
     struct dim3
     {
         uint32_t x, y, z;
@@ -68,79 +69,91 @@ namespace vuda
         {}
     };
     
+    //
+    // https://docs.nvidia.com/cuda/cuda-runtime-api/structcudaDeviceProp.html#structcudaDeviceProp
     struct deviceProp
     {
         char name[256];
+        //char luid[8];
+        //cudaUUID_t uuid;
+        int integrated;
+
         size_t totalGlobalMem;
         size_t sharedMemPerBlock;
-        int regsPerBlock;
-        int warpSize;
-        size_t memPitch;
+
         int maxThreadsPerBlock;
         int maxThreadsDim[3];
         int maxGridSize[3];
-        int clockRate;
-        size_t totalConstMem;
-        int major;
-        int minor;
-        size_t textureAlignment;
-        size_t texturePitchAlignment;
-        int deviceOverlap;
-        int multiProcessorCount;
-        int kernelExecTimeoutEnabled;
-        int integrated;
-        int canMapHostMemory;
+        
         int computeMode;
+        int concurrentKernels;
+        int deviceOverlap;
+        int canMapHostMemory;
+        int streamPrioritiesSupported;
+
+        int maxSurface1D;
+        int maxSurface1DLayered[2];
+        int maxSurface2D[2];
+        int maxSurface2DLayered[3];
+        int maxSurface3D[3];
+        int maxSurfaceCubemap;
+        int maxSurfaceCubemapLayered[2];
         int maxTexture1D;
-        int maxTexture1DMipmap;
+        int maxTexture1DLayered[2];
         int maxTexture1DLinear;
+        int maxTexture1DMipmap;
         int maxTexture2D[2];
-        int maxTexture2DMipmap[2];
-        int maxTexture2DLinear[3];
         int maxTexture2DGather[2];
+        int maxTexture2DLayered[3];
+        int maxTexture2DLinear[3];
+        int maxTexture2DMipmap[2];
         int maxTexture3D[3];
         int maxTexture3DAlt[3];
         int maxTextureCubemap;
-        int maxTexture1DLayered[2];
-        int maxTexture2DLayered[3];
         int maxTextureCubemapLayered[2];
-        int maxSurface1D;
-        int maxSurface2D[2];
-        int maxSurface3D[3];
-        int maxSurface1DLayered[2];
-        int maxSurface2DLayered[3];
-        int maxSurfaceCubemap;
-        int maxSurfaceCubemapLayered[2];
-        size_t surfaceAlignment;
-        int concurrentKernels;
-        int ECCEnabled;
-        int pciBusID;
-        int pciDeviceID;
-        int pciDomainID;
-        int tccDriver;
-        int asyncEngineCount;
-        int unifiedAddressing;
-        int memoryClockRate;
-        int memoryBusWidth;
-        int l2CacheSize;
-        int maxThreadsPerMultiProcessor;
-        int streamPrioritiesSupported;
-        int globalL1CacheSupported;
-        int localL1CacheSupported;
-        size_t sharedMemPerMultiprocessor;
-        int regsPerMultiprocessor;
-        int managedMemory;
-        int isMultiGpuBoard;
-        int multiGpuBoardGroupID;
-        int singleToDoublePrecisionPerfRatio;
-        int pageableMemoryAccess;
-        int concurrentManagedAccess;
-        int computePreemptionSupported;
-        int canUseHostPointerForRegisteredMem;
-        int cooperativeLaunch;
-        int cooperativeMultiDeviceLaunch;
-        int pageableMemoryAccessUsesHostPageTables;
-        int directManagedMemAccessFromHost;
+
+        //unsigned int luidDeviceNodeMask;
+        //int regsPerMultiprocessor;
+        //int ECCEnabled;
+        //int asyncEngineCount;        
+        //int canUseHostPointerForRegisteredMem;
+        //int clockRate;        
+        //int computePreemptionSupported;        
+        //int concurrentManagedAccess;
+        //int cooperativeLaunch;
+        //int cooperativeMultiDeviceLaunch;        
+        //int directManagedMemAccessFromHost;
+        //int globalL1CacheSupported;
+        //int hostNativeAtomicSupported;        
+        //int isMultiGpuBoard;
+        //int kernelExecTimeoutEnabled;
+        //int l2CacheSize;
+        //int localL1CacheSupported;
+        //int major;
+        //int managedMemory;
+        //int maxThreadsPerMultiProcessor;
+        //size_t memPitch;
+        //int memoryBusWidth;
+        //int memoryClockRate;
+        //int minor;
+        //int multiGpuBoardGroupID;
+        //int multiProcessorCount;        
+        //int pageableMemoryAccess;
+        //int pageableMemoryAccessUsesHostPageTables;
+        //int pciBusID;
+        //int pciDeviceID;
+        //int pciDomainID;
+        //int regsPerBlock;        
+        //size_t sharedMemPerBlockOptin;
+        //size_t sharedMemPerMultiprocessor;        
+        //int singleToDoublePrecisionPerfRatio;        
+        //size_t surfaceAlignment;
+        //int tccDriver;
+        //size_t textureAlignment;
+        //size_t texturePitchAlignment;
+        //size_t totalConstMem;        
+        //int unifiedAddressing;        
+        //int warpSize;
     };
 
 } //namespace vuda

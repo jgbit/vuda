@@ -66,22 +66,30 @@ namespace vuda
             // reserve some adress space
             LPVOID lp = VirtualAlloc(NULL, allocSize, MEM_RESERVE, PAGE_NOACCESS);
 
+            //
+            // check if reservation failed
             if(lp == NULL)
-                std::cout << "reservation failed with: " << GetLastErrorAsString().c_str() << std::endl;
+            {
+                std::ostringstream ostr;
+                ostr << "vuda: virtual memory reservation failed with: " << GetLastErrorAsString().c_str() << std::endl;
+                throw std::runtime_error(ostr.str());
+            }                
 
             return lp;
         }
 
-        inline int VirtFree(void *addr, size_t length)
+        inline void VirtFree(void *addr, const size_t length)
         {
             // If the dwFreeType parameter is MEM_RELEASE, this parameter must be 0 (zero). 
             // The function frees the entire region that is reserved in the initial allocation call to VirtualAlloc.
             BOOL ret = VirtualFree(addr, 0, MEM_RELEASE);
 
             if(ret == 0)
-                std::cout << "failed to free virtual memory!" << std::endl;
-
-            return ret;
+            {
+                std::ostringstream ostr;
+                ostr << "vuda: failed to free virtual memory reservation at " << addr << " of length " << length << "!";
+                throw std::runtime_error(ostr.str());
+            }
         }
 
 #elif(PLATFORM_NAME == VUDA_UNIX)
@@ -118,20 +126,28 @@ namespace vuda
             // If addr is NULL, then the kernel chooses the address at which to create the mapping
             void* ptr = mmap(NULL, allocSize, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
+            //
+            // check if reservation failed
             if(ptr == NULL)
-                std::cout << "reservation failed with: " << get_errno() << std::endl;
+            {
+                std::ostringstream ostr;
+                ostr << "vuda: virtual memory reservation failed with: " << get_errno() << std::endl;
+                throw std::runtime_error(ostr.str());
+            }            
 
             return ptr;
         }
 
-        inline int VirtFree(void *addr, size_t length)
+        inline void VirtFree(void *addr, const size_t length)
         {
             int ret = munmap(addr, length);
 
             if(ret == -1)
-                std::cout << "failed to free virtual memory with error: " << get_errno() << std::endl;
-
-            return 1;
+            {
+                std::ostringstream ostr;
+                ostr << "vuda: failed to free virtual memory reservation at " << addr << " of length " << length << "with: " << get_errno() << std::endl;
+                throw std::runtime_error(ostr.str());
+            }
         }
 
 #endif

@@ -1,6 +1,6 @@
 include ../config.mk
 
-EXECUTABLE=simple
+EXECUTABLE=device_query
 SOURCES=$(EXECUTABLE).cpp
 CUDA_SRC=$(EXECUTABLE).cpp
 
@@ -8,7 +8,7 @@ $(EXECUTABLE): $(SOURCES)
 	$(CC) $(CFLAGS) $^ -o $@ $(INCLUDE) $(LDFLAGS)
 
 cuda: $(CUDA_SRC)
-	$(NVCC) $^ -x cu -o $(EXECUTABLE)_$@
+	$(NVCC) $^ -o $(EXECUTABLE)_$@
 
 .PHONY: clean
 

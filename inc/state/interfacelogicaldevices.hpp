@@ -14,7 +14,6 @@ namespace vuda
             static logical_device* create(const vk::PhysicalDevice& physDevice, const int device)
             {
                 std::unordered_map<int, logical_device>::iterator iter;
-
                 
                 //
                 // take exclusive lock
@@ -76,18 +75,17 @@ namespace vuda
 
                 //
                 // get the first index into queueFamiliyProperties which supports compute
-                size_t computeQueueFamilyIndex = std::distance(queueFamilyProperties.begin(), std::find_if(queueFamilyProperties.begin(), queueFamilyProperties.end(), [](vk::QueueFamilyProperties const& qfp) { return qfp.queueFlags & vk::QueueFlagBits::eCompute; }));
-                assert(computeQueueFamilyIndex < queueFamilyProperties.size());
+                uint32_t computeQueueFamilyIndex = detail::vudaGetFamilyQueueIndex(queueFamilyProperties, vk::QueueFlagBits::eCompute | vk::QueueFlagBits::eTransfer);
 
                 //
                 // HARDCODED MAX NUMBER OF STREAMS
                 const uint32_t queueCount = queueFamilyProperties[computeQueueFamilyIndex].queueCount;
                 const uint32_t queueComputeCount = queueCount;
                 const std::vector<float> queuePriority(queueComputeCount, 0.0f);
-                vk::DeviceQueueCreateInfo deviceQueueCreateInfo(vk::DeviceQueueCreateFlags(), static_cast<uint32_t>(computeQueueFamilyIndex), queueComputeCount, queuePriority.data());
+                vk::DeviceQueueCreateInfo deviceQueueCreateInfo(vk::DeviceQueueCreateFlags(), computeQueueFamilyIndex, queueComputeCount, queuePriority.data());
 
             #ifdef VUDA_STD_LAYER_ENABLED
-                vk::DeviceCreateInfo info({}, 1, &deviceQueueCreateInfo, 1, Instance::getValidationLayers().data(), 0, nullptr, nullptr);
+                vk::DeviceCreateInfo info(vk::DeviceCreateFlags(), 1, &deviceQueueCreateInfo, 1, Instance::getValidationLayers().data(), 0, nullptr, nullptr);
             #else
                 vk::DeviceCreateInfo info(vk::DeviceCreateFlags(), 1, &deviceQueueCreateInfo);
             #endif
