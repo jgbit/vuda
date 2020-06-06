@@ -59,8 +59,9 @@ namespace vuda
         else
             prop->integrated = 0; // eDiscreteGpu
 
-        // find the size of the device-local heap memory        
-        prop->totalGlobalMem = (size_t)vuda::detail::findDeviceLocalMemorySize(physDevice);
+        // find the size of the device-local heap memory
+        vuda::detail::VudaMemoryProperties deviceMemProperties(physDevice);
+        prop->totalGlobalMem = (size_t)deviceMemProperties.GetDeviceLocalMemorySize();
 
         // maximum shared memory
         prop->sharedMemPerBlock = deviceProperties.limits.maxComputeSharedMemorySize;

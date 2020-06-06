@@ -28,7 +28,7 @@ namespace vuda
             {
                 //
                 // allocate            
-                m_ptrMemBlock = allocator.allocate(vk::MemoryPropertyFlags(memoryPropertiesFlags::eHostInternalProperties), size);
+                m_ptrMemBlock = allocator.allocate(vudaMemoryTypes::ePinned_Internal, size);
             }
         };
 

@@ -110,7 +110,11 @@ namespace vuda
 
             static std::vector<const char*>& getValidationLayers(void)
             {
-                static std::vector<const char*> validationLayers = { "VK_LAYER_LUNARG_standard_validation" };
+                #if defined(__APPLE__)
+                    static std::vector<const char*> validationLayers = { "VK_LAYER_KHRONOS_validation" };
+                #else
+                    static std::vector<const char*> validationLayers = { "VK_LAYER_LUNARG_standard_validation" };
+                #endif
                 return validationLayers;
             }
     #endif        

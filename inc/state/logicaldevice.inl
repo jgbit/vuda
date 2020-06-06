@@ -238,7 +238,7 @@ namespace vuda
         {
             //
             // create new node in pinned host visible in storage_bst 
-            default_storage_node* node = new default_storage_node(vk::MemoryPropertyFlags(memoryPropertiesFlags::eHostProperties), size, m_allocator);
+            default_storage_node* node = new default_storage_node(vudaMemoryTypes::ePinned, size, m_allocator);
 
             //
             // return the memory pointer
@@ -253,7 +253,7 @@ namespace vuda
         {
             //
             // create new node in cached, pinned, host visible mem
-            default_storage_node* node = new default_storage_node(vk::MemoryPropertyFlags(memoryPropertiesFlags::eCachedProperties), size, m_allocator);
+            default_storage_node* node = new default_storage_node(vudaMemoryTypes::eCached, size, m_allocator);
 
             //
             // return the memory pointer

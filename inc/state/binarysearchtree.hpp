@@ -23,7 +23,7 @@ namespace vuda
             {
             }        
 
-            virtual std::ostringstream print(int depth = 0) const { return std::ostringstream(); }
+            virtual std::ostringstream print(int depth = 0) const = 0;            
 
             //
             // sets
@@ -67,7 +67,7 @@ namespace vuda
                 set_key(1, 1);
             }
 
-            std::ostringstream print(int depth = 0) const
+            std::ostringstream print(int depth = 0) const override
             {
                 std::ostringstream ostr;
                 for(int i = 0; i < depth; ++i)
@@ -86,7 +86,7 @@ namespace vuda
                 set_key(this, 1);            
             }
 
-            std::ostringstream print(int depth = 0) const
+            std::ostringstream print(int depth = 0) const override
             {
                 std::ostringstream ostr;
                 for(int i = 0; i < depth; ++i)

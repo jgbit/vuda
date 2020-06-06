@@ -16,7 +16,6 @@
 
 void profileCopies(float *h_a, float *h_b, float *d, unsigned int n, std::string desc)
 {
-    Timer timer;
     std::cout << std::endl << desc << " transfers" << std::endl;
 
     const unsigned int bytes = n * sizeof(float);

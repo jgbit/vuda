@@ -29,15 +29,13 @@ namespace vuda
             eDefault = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
         };
 
-        enum memoryPropertiesFlags {
-            //eDeviceProperties = vk::MemoryPropertyFlagBits::eDeviceLocal,
-            eDeviceProperties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-
-            eHostProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-            eHostInternalProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-
-            eCachedProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
-            eCachedInternalProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT
+        enum vudaMemoryTypes {
+            eDeviceLocal,
+            ePinned,
+            ePinned_Internal,
+            eCached,
+            eCached_Internal,
+            eLast
         };
 
     } //namespace detail

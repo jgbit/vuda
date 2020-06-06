@@ -18,8 +18,8 @@ namespace vuda
         class device_buffer_node : public default_storage_node
         {
         public:
-            device_buffer_node(const size_t size, memory_allocator& allocator) :
-                default_storage_node(vk::MemoryPropertyFlags(memoryPropertiesFlags::eDeviceProperties), size, allocator)
+            device_buffer_node(const size_t size, memory_allocator& allocator) :                
+                default_storage_node(vudaMemoryTypes::eDeviceLocal, size, allocator)
             {
                 //
                 // reserve address range in virtual memory (platform dependent)
@@ -67,9 +67,8 @@ namespace vuda
             }
 
             //
-            // get functions            
-
-            std::ostringstream print(int depth = 0) const
+            // get functions
+            std::ostringstream print(int depth = 0) const override
             {   
                 std::ostringstream ostr;
                 ostr << std::this_thread::get_id() << ": ";

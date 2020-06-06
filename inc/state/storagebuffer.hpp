@@ -16,13 +16,13 @@ namespace vuda
         {
         public:
 
-            default_storage_node(const vk::MemoryPropertyFlags& memory_properties, const size_t size, memory_allocator& allocator) :
+            default_storage_node(const vudaMemoryTypes& memory_type, const size_t size, memory_allocator& allocator) :
                 m_size(size),
-                m_hostVisible(memory_properties & vk::MemoryPropertyFlagBits::eHostVisible)            
+                m_hostVisible(allocator.IsHostVisible(memory_type))
             {
                 //
                 // get pointer into memory chunk
-                m_ptrMemBlock = allocator.allocate(memory_properties, m_size);
+                m_ptrMemBlock = allocator.allocate(memory_type, m_size);
 
                 //
                 // the memory remains mapped until it is freed by the user calling free/destroy
@@ -56,8 +56,7 @@ namespace vuda
 
             //
             // get
-
-            std::ostringstream print(int depth = 0) const
+            std::ostringstream print(int depth = 0) const override
             {
                 std::ostringstream ostr;
                 ostr << std::this_thread::get_id() << ": ";
