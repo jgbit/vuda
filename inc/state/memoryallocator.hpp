@@ -11,7 +11,7 @@ namespace vuda
         public:
 
             // allocate
-            memory_block(const vk::DeviceSize offset, const vk::DeviceSize size, const vk::Buffer& buffer) : m_offset(offset), m_size(size), m_ptr(nullptr), m_buffer(buffer)
+            memory_block(const vk::DeviceMemory memory, const vk::DeviceSize offset, const vk::DeviceSize size, const vk::Buffer& buffer) : m_memory(memory), m_offset(offset), m_size(size), m_ptr(nullptr), m_buffer(buffer)
             {
             }
 
@@ -38,7 +38,7 @@ namespace vuda
                 std::cout << ostr.str();*/
 
                 //
-                // m_free is atomic so no need to guard            
+                // m_free is atomic so no need to guard
                 m_locked.clear(std::memory_order_release);
             }
 
@@ -48,6 +48,11 @@ namespace vuda
             vk::Buffer get_buffer(void) const
             {
                 return m_buffer;
+            }
+
+            vk::DeviceMemory get_memory(void) const
+            {
+                return m_memory;
             }
 
             vk::DeviceSize get_offset(void) const
@@ -68,6 +73,7 @@ namespace vuda
         private:            
             std::atomic_flag m_locked = ATOMIC_FLAG_INIT;
 
+            vk::DeviceMemory m_memory;
             vk::DeviceSize m_offset;
             vk::DeviceSize m_size;
         
@@ -94,7 +100,7 @@ namespace vuda
                 m_memreq(device.getBufferMemoryRequirements(m_buffer.get())),
 
                 //
-                // memory information                
+                // memory information
                 m_hostVisible(hostVisible),
                 m_memoryTypeIndex(memoryTypeIndex),
 
@@ -117,7 +123,7 @@ namespace vuda
 
                 //
                 // create initial block
-                m_blocks.emplace_back(std::make_unique<memory_block>(0, m_size, m_buffer.get()));
+                m_blocks.emplace_back(std::make_unique<memory_block>(m_memory.get(), 0, m_size, m_buffer.get()));
 
                 //
                 // hello there
@@ -169,7 +175,7 @@ namespace vuda
                             {
                                 //
                                 // create new block
-                                m_blocks.emplace_back(std::make_unique<memory_block>(offset + size, virtualSize - size, m_buffer.get()));
+                                m_blocks.emplace_back(std::make_unique<memory_block>(m_memory.get(), offset + size, virtualSize - size, m_buffer.get()));
                             }
 
                             // if host visible push the memory pointer
@@ -181,7 +187,7 @@ namespace vuda
                             m_blocks[i]->reallocate(offset, size, ptr);
                             return m_blocks[i].get();
                         }
-                    }            
+                    }
                 }
                 return nullptr;
             }
@@ -237,7 +243,7 @@ namespace vuda
                 VudaMemoryProperties deviceMemProperties(physDevice);
 
                 //
-                // resize                
+                // resize
                 const uint32_t vudaNumMemTypes = vudaMemoryTypes::eLast;
                 m_memoryAllocatorIndices.resize(vudaNumMemTypes);
                 m_memoryProperties.resize(vudaNumMemTypes);
@@ -246,14 +252,14 @@ namespace vuda
                 uint32_t memoryTypeIndex;
 
                 //
-                // find and define suitable memory types                
+                // find and define suitable memory types
                 /*
                     some general rule of thumbs:
                     | OS        | Vendor                            | Comment
                     =======================================================================================================
                     | Windows   | all three major PC GPU vendors    | all memory that is HOST_VISIBLE is also HOST_COHERENT
                     | Windows   | Intel                             | all memory is HOST_VISIBLE
-                    | Mac OS    | AMD, Intel                        | memory that is HOST_CACHED_BIT is not HOST_COHERENT
+                    | Mac OS    | AMD, Intel                        | memory that is HOST_CACHED is not HOST_COHERENT
                 */
                 //
                 // memory properties -> memory types
@@ -272,8 +278,9 @@ namespace vuda
                 m_memoryProperties[vudaMemoryTypes::ePinned_Internal] = candidate;
 
                 memoryTypeIndex = deviceMemProperties.FindMemoryTypeFromCandidates(device, std::vector<vk::MemoryPropertyFlags>{
-                    vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent | vk::MemoryPropertyFlagBits::eHostCached, // first try if we can get coherent memory
-                    vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent                                            // vulkan spec guareenteed fallback
+                    vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCached | vk::MemoryPropertyFlagBits::eHostCoherent, // first try if we can get coherent memory
+                    vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCached,                                             // then we settle non-coherent but cached
+                    vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent                                            // guaranteed fallback
                 }, candidate);
                 m_memoryAllocatorIndices[vudaMemoryTypes::eCached] = memoryTypeIndex;
                 m_memoryProperties[vudaMemoryTypes::eCached] = candidate;
@@ -291,8 +298,8 @@ namespace vuda
                 uint32_t numMemTypes = deviceMemProperties.GetNumberOfUniqueMemoryTypes(memoryIndices);
 
                 // pure index -> memory index
-                for(uint32_t i = 0; i < numMemTypes; ++i)                
-                    m_memoryIndexToPureIndex[memoryIndices[i]] = i;                
+                for(uint32_t i = 0; i < numMemTypes; ++i)
+                    m_memoryIndexToPureIndex[memoryIndices[i]] = i;
 
                 //
                 // allocate a vector for each type of memory
@@ -380,6 +387,14 @@ namespace vuda
                     return false;
             }
 
+            inline bool IsHostCoherent(const vudaMemoryTypes& memory_type)
+            {
+                if(m_memoryProperties[memory_type] & vk::MemoryPropertyFlagBits::eHostCoherent)
+                    return true;
+                else
+                    return false;
+            }
+
             /*memory_block* allocate(const vk::DeviceSize size, const vk::DeviceSize alignment)
             {
                 memory_block* block;
@@ -446,7 +461,7 @@ namespace vuda
         private:
 
             /*
-                private non-synchronized implementation        
+                private non-synchronized implementation
             */
 
             /*void set_default_alloc_size(const vk::DeviceSize default_alloc_size)
@@ -457,7 +472,7 @@ namespace vuda
         private:
 
             //
-            // keep memory allocator associated to one device        
+            // keep memory allocator associated to one device
             const vk::PhysicalDevice m_physDevice;
             const vk::Device m_device;
 
@@ -466,7 +481,7 @@ namespace vuda
             vk::DeviceSize m_defaultChunkSize;
 
             //
-            // chunks of memory        
+            // chunks of memory
             /*std::shared_mutex m_mtxChunks;
             std::vector<memory_chunk> m_chunks;*/
 

@@ -18,7 +18,7 @@ namespace vuda
         class device_buffer_node : public default_storage_node
         {
         public:
-            device_buffer_node(const size_t size, memory_allocator& allocator) :                
+            device_buffer_node(const size_t size, memory_allocator& allocator) :
                 default_storage_node(vudaMemoryTypes::eDeviceLocal, size, allocator)
             {
                 //
@@ -34,26 +34,6 @@ namespace vuda
             ~device_buffer_node()
             {
             }
-
-            /*void set_data(default_storage_node* node)
-            {
-                // invoke base
-                default_storage_node::set_data(node);
-            
-                //
-                // copy data
-                std::cout << "UNSAFE STATIC CAST" << std::endl;
-                device_buffer_node* deriv = static_cast<device_buffer_node*>(node);
-                m_allocatedSize = deriv->m_allocatedSize;
-                m_ptrVirtual = deriv->m_ptrVirtual;
-
-                //
-                // debug:
-                std::ostringstream ostr;
-                ostr << std::this_thread::get_id() << " copy data: " << m_ptrVirtual << " ";
-                ostr << key() << " " << (uintptr_t)key() << " " << range() << " " << (uintptr_t)key() + range() << " (device buffer node)" << std::endl;
-                std::cout << ostr.str();
-            }*/
 
             void destroy(void) override
             {

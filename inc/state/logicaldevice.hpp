@@ -21,7 +21,7 @@ namespace vuda
             // events
             void CreateEvent(event_t* event);
             void DestroyEvent(const event_t event);
-            void RecordEvent(const std::thread::id tid, const event_t& event, const stream_t stream);        
+            void RecordEvent(const std::thread::id tid, const event_t& event, const stream_t stream);
             float GetElapsedTimeBetweenEvents(const event_t& start, const event_t& end);
 
             //
@@ -46,7 +46,7 @@ namespace vuda
             template <typename... specialTypes, size_t bindingSize>
             void SubmitKernel(  const std::thread::id tid, std::string const& identifier, char const* entry,
                                 const std::array<vk::DescriptorSetLayoutBinding, bindingSize>& bindings,
-                                const specialization<specialTypes...>& specials,                                
+                                const specialization<specialTypes...>& specials,
                                 const std::array<vk::DescriptorBufferInfo, bindingSize>& bufferDescriptors,
                                 const dim3 blocks,
                                 const stream_t stream);
@@ -55,7 +55,7 @@ namespace vuda
             uint64_t CreateKernel(char const* filename, char const* entry, const std::vector<vk::DescriptorSetLayoutBinding>& bindings, specialization<specialTypes...>& specials, int blocks);*/
         
             //
-            // command pool functions        
+            // command pool functions
             void CreateCommandPool(const std::thread::id tid);
         
             void memcpyHtH(const std::thread::id tid, void* dst, const void* src, const size_t count, const stream_t stream) const;
@@ -65,7 +65,7 @@ namespace vuda
 
             //void UpdateDescriptorAndCommandBuffer(const std::thread::id tid, const uint64_t kernelIndex, const std::vector<void*>& memaddr, const std::vector<vk::DescriptorBufferInfo>& bufferDescriptors, const stream_t stream);
             void FlushQueue(const std::thread::id tid, const stream_t stream);
-            void FlushEvent(const std::thread::id tid, const event_t event);        
+            void FlushEvent(const std::thread::id tid, const event_t event);
 
             //
             //
@@ -73,11 +73,14 @@ namespace vuda
 
         private:
 
-            //std::vector<uint32_t> GetStreamIdentifiers(const void* src);                
+            void flush_queue(const std::thread::id tid, const stream_t stream, const thrdcmdpool *pool, const vk::Queue q);
+            void flush_event(const stream_t stream, const event_t event, const thrdcmdpool *pool, const vk::Queue q);
+
+            //std::vector<uint32_t> GetStreamIdentifiers(const void* src);
             void push_mem_node(default_storage_node* node);
 
             //
-            // shader modules            
+            // shader modules
             std::vector<char> ReadShaderModuleFromFile(const std::string& filename) const;
             vk::ShaderModule CreateShaderModule(std::string const& identifier, char const* entry);
 
@@ -91,6 +94,7 @@ namespace vuda
             //
             // physical device properties
             float m_timestampPeriod;
+            vk::DeviceSize m_nonCoherentAtomSize;
 
             //
             // compute family indices
@@ -109,7 +113,7 @@ namespace vuda
 
             //
             // queue family and queues
-            std::vector<std::unique_ptr<std::mutex>> m_mtxQueues;        
+            std::vector<std::unique_ptr<std::mutex>> m_mtxQueues;
             //std::unordered_map<uint32_t, std::vector<vk::Queue>> m_queues;
             std::vector<vk::Queue> m_queues;
 
@@ -133,7 +137,7 @@ namespace vuda
             std::unique_ptr<std::shared_mutex> m_mtxResources;
 
             //
-            // buffers            
+            // buffers
             default_storage_node* m_storageBST_root;
             //std::vector<default_storage_node*> m_storageBST;
             bst<default_storage_node, void*> m_storage;
@@ -149,7 +153,7 @@ namespace vuda
 
             //
             // events
-            std::unique_ptr<std::shared_mutex> m_mtxEvents;        
+            std::unique_ptr<std::shared_mutex> m_mtxEvents;
             std::map<vk::Event, event_tick> m_events;
         };
 

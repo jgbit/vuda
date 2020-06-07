@@ -5,13 +5,14 @@ namespace vuda
     namespace detail
     {
 
-        class internal_node// : public default_storage_node
+        class internal_node
         {
         public:
 
-            internal_node(const size_t size) : m_size(size), m_ptrMemBlock(nullptr)
+            internal_node(const size_t size, const bool isHostVisible, const bool isHostCoherent) :
+                m_size(size), m_ptrMemBlock(nullptr), m_isHostVisible(isHostVisible), m_isHostCoherent(isHostCoherent)
             {
-                // lock node initially            
+                // lock node initially
                 //m_locked.test_and_set(std::memory_order_acquire);
             }
 
@@ -19,7 +20,8 @@ namespace vuda
             {
                 //m_locked.clear(std::memory_order_release);
                 m_ptrMemBlock->deallocate();
-            }            
+                //m_ptrMemBlock = nullptr;
+            }
             
             bool test_and_set(void) const
             {
@@ -28,9 +30,9 @@ namespace vuda
             }
 
             //
-            //
+            // get
 
-            vk::DeviceSize get_size(void) const
+            vk::DeviceSize GetSize(void) const
             {
                 return m_size;
             }
@@ -38,6 +40,11 @@ namespace vuda
             vk::Buffer GetBuffer(void) const
             {
                 return m_ptrMemBlock->get_buffer();
+            }
+
+            vk::DeviceMemory GetMemory(void) const
+            {
+                return m_ptrMemBlock->get_memory();
             }
 
             vk::DeviceSize GetOffset(void) const
@@ -48,15 +55,29 @@ namespace vuda
             void* get_memptr(void) const
             {
                 return m_ptrMemBlock->get_ptr();
-            }            
+            }
+
+            bool IsHostVisible(void) const
+            {
+                return m_isHostVisible;
+            }
+
+            bool IsHostCoherent(void) const
+            {
+                return m_isHostCoherent;
+            }
 
         protected:
+
+            //
+            // memory block
             vk::DeviceSize m_size;
             memory_block* m_ptrMemBlock;
 
         private:
 
-            //std::atomic_flag m_locked = ATOMIC_FLAG_INIT;
+            bool m_isHostVisible;
+            bool m_isHostCoherent;
         };
 
         /*
@@ -91,7 +112,7 @@ namespace vuda
                     if(m_buffers[i]->test_and_set() == false)
                     {
                         // when the buffer is locked, the size is checked
-                        if(m_buffers[i]->get_size() >= size)
+                        if(m_buffers[i]->GetSize() >= size)
                         {
                             hcb = m_buffers[i].get();
                             break;

@@ -3,7 +3,7 @@
 #include <cstring>
 
 #if defined(__NVCC__)
-    #include <cuda_runtime.h>      
+    #include <cuda_runtime.h>
 #else
     #if !defined(NDEBUG)
     #define VUDA_STD_LAYER_ENABLED
@@ -52,7 +52,7 @@ void profileCopies(float *h_a, float *h_b, float *d, unsigned int n, std::string
             break;
         }
     }
-        
+
     // clean up events
     cudaEventDestroy(startEvent);
     cudaEventDestroy(stopEvent);
@@ -133,13 +133,13 @@ void run(void)
     std::memset(h_bPinned, 0, bytes);
     std::memset(h_bWC, 0, bytes);
     std::cout << std::endl << "TIMING USING EVENTS:";
-    profileCopies(h_aPageable, h_bPageable, d_a, nElements, "Pageable");    
-    profileCopies(h_aWC, h_bWC, d_a, nElements, "Write-Combined");    
+    profileCopies(h_aPageable, h_bPageable, d_a, nElements, "Pageable");
+    profileCopies(h_aWC, h_bWC, d_a, nElements, "Write-Combined");
     // NOTE:
     // Reading pinned memory (persistently mapped) from the host tends to be slow
     // as it is not cached by the CPU, the GPU sees the memory as it is.
     // This also means that CPU writes and reads tend to be slow.
-    profileCopies(h_aPinned, h_bPinned, d_a, nElements, "Pinned");    
+    profileCopies(h_aPinned, h_bPinned, d_a, nElements, "Pinned");
 
     /*// host timing
     std::memset(h_bPageable, 0, bytes);

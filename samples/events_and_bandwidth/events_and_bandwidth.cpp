@@ -7,47 +7,66 @@ https://devblogs.nvidia.com/how-optimize-data-transfers-cuda-cc/
 
 */
 
-#ifndef _DEBUG 
-#define NDEBUG
-#endif
-#ifndef NDEBUG
+#include <iostream>
+#include <iomanip>
+#include <sstream>
+#include <vector>
+#include <cstring>
+
+#if defined(__NVCC__)
+#include <cuda_runtime.h>
+#else
+#if !defined(NDEBUG)
 #define VUDA_STD_LAYER_ENABLED
 #define VUDA_DEBUG_ENABLED
 #endif
+#include <vuda_runtime.hpp>
+#endif
 
-#include <vuda.hpp>
 #include "../tools/timer.hpp"
-#include <iomanip>
 
-double profileTransfer(float *dst, const float *src, unsigned int n, vuda::memcpyKind kind, std::string desc, bool verbose=false)
+double profileTransfer(float *dst, const float *src, unsigned int n, cudaMemcpyKind kind, std::string desc, bool verbose=false)
 {
     std::cout << std::endl << desc << ", ";
-    if(kind == vuda::memcpyHostToHost)
+    if(kind == cudaMemcpyHostToHost)
         std::cout << "HtH";
-    else if(kind == vuda::memcpyHostToDevice)
+    else if(kind == cudaMemcpyHostToDevice)
         std::cout << "HtD";
-    else if(kind == vuda::memcpyDeviceToHost)
+    else if(kind == cudaMemcpyDeviceToHost)
         std::cout << "DtH";
-    else if(kind == vuda::memcpyDeviceToDevice)
-        std::cout << "DtD";    
+    else if(kind == cudaMemcpyDeviceToDevice)
+        std::cout << "DtD";
     std::cout << " transfer" << std::endl;
 
     Timer timer;
-    double time, total=0.0;
+    double time, total = 0.0f;
     const unsigned int bytes = n * sizeof(float);
-    const int runs = 5;
+    const int runs = 10;
+
+    /*cudaEvent_t startEvent, stopEvent;
+    cudaEventCreate(&startEvent);
+    cudaEventCreate(&stopEvent);*/
+    
 
     for(int run=0; run<=runs; ++run)
     {
+        //cudaEventRecord(startEvent, 0);
         timer.tic();
-        vuda::memcpy(dst, src, bytes, kind, 0);
-        vuda::streamSynchronize(0);
+        cudaMemcpy(dst, src, bytes, kind);
         time = timer.toc();
+        //cudaEventRecord(stopEvent, 0);
+        //cudaEventSynchronize(stopEvent);
+
+        //cudaEventElapsedTime(&time, startEvent, stopEvent);
         if(run != 0)
             total += time;
         if(verbose)
             std::cout << "  iter: " << run << ", transfer time (s)   : " << time << std::endl;
     }
+
+    // clean up events
+    //cudaEventDestroy(startEvent);
+    //cudaEventDestroy(stopEvent);
 
     time = total / (double)runs;
     double bw = bytes * 1e-9 / time;
@@ -56,100 +75,9 @@ double profileTransfer(float *dst, const float *src, unsigned int n, vuda::memcp
     return bw;
 }
 
-void profileCopies(float *h_a, float *h_b, float *d, unsigned int n, std::string desc)
-{
-    /*Timer timer;
-    std::cout << std::endl << desc << " transfers" << std::endl;
-
-    const unsigned int bytes = n * sizeof(float);
-
-    // events for timing
-    vuda::event_t startEvent, stopEvent;
-    vuda::eventCreate(&startEvent);
-    vuda::eventCreate(&stopEvent);
-
-    //
-    //
-    vuda::eventRecord(startEvent, 0);
-    vuda::memcpy(d, h_a, bytes, vuda::memcpyHostToDevice, 0);        
-    vuda::eventRecord(stopEvent, 0);
-    vuda::eventSynchronize(stopEvent);
-
-    float time;    
-    vuda::eventElapsedTime(&time, startEvent, stopEvent);    
-    std::cout << "  Host to Device event-time (ms) : " << time * 1e-3 << std::endl;
-    std::cout << "  Host to Device bandwidth  (GB/s): " << bytes * 1e-6 / time << std::endl;
-
-    vuda::eventRecord(startEvent, 0);
-    vuda::memcpy(h_b, d, bytes, vuda::memcpyDeviceToHost);
-    vuda::eventRecord(stopEvent, 0);
-    vuda::eventSynchronize(stopEvent);
-    
-    vuda::eventElapsedTime(&time, startEvent, stopEvent);
-    std::cout << "  Device to Host event-time (ms) : " << time * 1e-3 << std::endl;
-    std::cout << "  Device to Host bandwidth  (GB/s): " << bytes * 1e-6 / time << std::endl;    
-
-    for(unsigned int i = 0; i < n; ++i)
-    {
-        if(h_a[i] != h_b[i])
-        {
-            std::cout << "*** " << desc << " transfers failed ***" << std::endl;
-            break;
-        }
-    }*/
-
-    // clean up events
-    //vuda::eventDestroy(startEvent));
-    //vuda::eventDestroy(stopEvent));
-}
-
-void profileCopiesHost(float *h_a, float *h_b, float *d_a, float *d_b, unsigned int n, std::string desc)
-{
-    Timer timer;
-    std::cout << std::endl << desc << " transfers" << std::endl;
-
-    double time;
-    const unsigned int bytes = n * sizeof(float);
-        
-    timer.tic();
-    vuda::memcpy(d_a, h_a, bytes, vuda::memcpyHostToDevice, 0);
-    vuda::streamSynchronize(0);
-    time = timer.toc();
-    std::cout << "  Host to Device time      (s)   : " << time << std::endl;    
-    std::cout << "  Host to Device bandwidth (GB/s): " << bytes * 1e-9 / time << std::endl;
-    
-    // intermediate internal copy
-    timer.tic();
-    vuda::memcpy(d_b, d_a, bytes, vuda::memcpyDeviceToDevice, 0);
-    vuda::streamSynchronize(0);
-    time = timer.toc();
-    std::cout << "  Device to Device time    (s)   : " << time << std::endl;
-    std::cout << "  Device to Device bandwidth (GB/s): " << bytes * 1e-9 / time << std::endl;
-
-    timer.tic();    
-    vuda::memcpy(h_b, d_b, bytes, vuda::memcpyDeviceToHost);
-    vuda::streamSynchronize(0);
-    time = timer.toc();
-    std::cout << "  Device to Host time      (s)   : " << time << std::endl;
-    std::cout << "  Device to Host bandwidth (GB/s): " << bytes * 1e-9 / time << std::endl;
-    
-    bool test = true;
-    for(unsigned int i = 0; i < n; ++i)
-    {
-        if(h_a[i] != h_b[i])
-        {
-            test = false;
-            std::cout << "*** " << desc << " transfers failed ***" << std::endl;
-            break;
-        }
-    }
-    if(test)
-        std::cout << "  transfers completed successfully." << std::endl;
-}
-
 void title(std::string title)
 {
-    std::cout << std::endl;    
+    std::cout << std::endl;
     std::cout << std::string(title.size(), '=') << std::endl;
     std::cout << title << std::endl;
     std::cout << std::string(title.size(), '=') << std::endl;
@@ -189,16 +117,16 @@ void print_bwresults(std::vector<std::string> memtype, std::vector<double> bwpro
 void run(void)
 {
     int count = 0;
-    vuda::getDeviceCount(&count);
+    cudaGetDeviceCount(&count);
     if(count == 0)
     {
         std::cout << "no devices found" << std::endl;
         return;
     }
-    vuda::setDevice(0);
+    cudaSetDevice(0);
 
     int deviceID = -1;
-    vuda::getDevice(&deviceID);
+    cudaGetDevice(&deviceID);
 
     //
     // problem size
@@ -212,15 +140,15 @@ void run(void)
     float *d_a, *d_b;
 
     //
-    // allocate    
+    // allocate
     h_aPageable = (float*)malloc(bytes);                                        // host pageable
     h_bPageable = (float*)malloc(bytes);                                        // host pageable
-    vuda::malloc((void**)&d_a, bytes);                                          // device
-    vuda::malloc((void**)&d_b, bytes);                                          // device
-    vuda::mallocHost((void**)&h_aPinned, bytes);                                // host pinned
-    vuda::mallocHost((void**)&h_bPinned, bytes);                                // host pinned
-    vuda::hostAlloc((void**)&h_aCached, bytes, vuda::hostAllocWriteCombined);   // host cached
-    vuda::hostAlloc((void**)&h_bCached, bytes, vuda::hostAllocWriteCombined);   // host cached
+    cudaMalloc((void**)&d_a, bytes);                                          // device
+    cudaMalloc((void**)&d_b, bytes);                                          // device
+    cudaMallocHost((void**)&h_aCached, bytes);                                // host cached
+    cudaMallocHost((void**)&h_bCached, bytes);                                // host cached
+    cudaHostAlloc((void**)&h_aPinned, bytes, cudaHostAllocWriteCombined);   // host pinned
+    cudaHostAlloc((void**)&h_bPinned, bytes, cudaHostAllocWriteCombined);   // host pinned
 
     //
     // initialize data
@@ -235,8 +163,8 @@ void run(void)
 
     //
     // output device info and transfer size
-    vuda::deviceProp prop;
-    vuda::getDeviceProperties(&prop, 0);
+    cudaDeviceProp prop;
+    cudaGetDeviceProperties(&prop, 0);
     std::cout << std::endl << "Device: " << prop.name << std::endl;
     std::cout << "Transfer size (MB): " << bytes / (1024 * 1024) << std::endl;
 
@@ -275,64 +203,45 @@ void run(void)
     bool verbose = false;
 
     // 1. row/col
-    bwprofile[iter++] = profileTransfer(d_b, d_a, nElements, vuda::memcpyDeviceToDevice, "local to local", verbose);
-    bwprofile[iter++] = profileTransfer(h_bPageable, d_a, nElements, vuda::memcpyDeviceToHost, "local to pageable", verbose);
-    bwprofile[iter++] = profileTransfer(h_bPinned, d_a, nElements, vuda::memcpyDeviceToHost, "local to pinned", verbose);
-    bwprofile[iter++] = profileTransfer(h_bCached, d_a, nElements, vuda::memcpyDeviceToHost, "local to cached", verbose);
+    bwprofile[iter++] = profileTransfer(d_b, d_a, nElements, cudaMemcpyDeviceToDevice, "local to local", verbose);
+    bwprofile[iter++] = profileTransfer(h_bPageable, d_a, nElements, cudaMemcpyDeviceToHost, "local to pageable", verbose);
+    bwprofile[iter++] = profileTransfer(h_bPinned, d_a, nElements, cudaMemcpyDeviceToHost, "local to pinned", verbose);
+    bwprofile[iter++] = profileTransfer(h_bCached, d_a, nElements, cudaMemcpyDeviceToHost, "local to cached", verbose);
 
     // 2. row/col
-    bwprofile[iter++] = profileTransfer(d_b, h_aPageable, nElements, vuda::memcpyHostToDevice, "pageable to local", verbose);
-    bwprofile[iter++] = profileTransfer(h_bPageable, h_aPageable, nElements, vuda::memcpyHostToHost, "pageable to pageable", verbose);
-    bwprofile[iter++] = profileTransfer(h_bPinned, h_aPageable, nElements, vuda::memcpyHostToHost, "pageable to pinned", verbose);
-    bwprofile[iter++] = profileTransfer(h_bCached, h_aPageable, nElements, vuda::memcpyHostToHost, "pageable to cached", verbose);
+    bwprofile[iter++] = profileTransfer(d_b, h_aPageable, nElements, cudaMemcpyHostToDevice, "pageable to local", verbose);
+    bwprofile[iter++] = profileTransfer(h_bPageable, h_aPageable, nElements, cudaMemcpyHostToHost, "pageable to pageable", verbose);
+    bwprofile[iter++] = profileTransfer(h_bPinned, h_aPageable, nElements, cudaMemcpyHostToHost, "pageable to pinned", verbose);
+    bwprofile[iter++] = profileTransfer(h_bCached, h_aPageable, nElements, cudaMemcpyHostToHost, "pageable to cached", verbose);
 
     // 3. row/col
-    bwprofile[iter++] = profileTransfer(d_b, h_aPinned, nElements, vuda::memcpyHostToDevice, "pinned to local", verbose);
-    bwprofile[iter++] = profileTransfer(h_bPageable, h_aPinned, nElements, vuda::memcpyHostToHost, "pinned to pageable", verbose);
-    bwprofile[iter++] = profileTransfer(h_bPinned, h_aPinned, nElements, vuda::memcpyHostToHost, "pinned to pinned", verbose);
-    bwprofile[iter++] = profileTransfer(h_bCached, h_aPinned, nElements, vuda::memcpyHostToHost, "pinned to cached", verbose);
+    bwprofile[iter++] = profileTransfer(d_b, h_aPinned, nElements, cudaMemcpyHostToDevice, "pinned to local", verbose);
+    bwprofile[iter++] = profileTransfer(h_bPageable, h_aPinned, nElements, cudaMemcpyHostToHost, "pinned to pageable", verbose);
+    bwprofile[iter++] = profileTransfer(h_bPinned, h_aPinned, nElements, cudaMemcpyHostToHost, "pinned to pinned", verbose);
+    bwprofile[iter++] = profileTransfer(h_bCached, h_aPinned, nElements, cudaMemcpyHostToHost, "pinned to cached", verbose);
 
     // 4. row/col
-    bwprofile[iter++] = profileTransfer(d_b, h_aCached, nElements, vuda::memcpyHostToDevice, "cached to local", verbose);
-    bwprofile[iter++] = profileTransfer(h_bPageable, h_aCached, nElements, vuda::memcpyHostToHost, "cached to pageable", verbose);
-    bwprofile[iter++] = profileTransfer(h_bPinned, h_aCached, nElements, vuda::memcpyHostToHost, "cached to pinned", verbose);
-    bwprofile[iter++] = profileTransfer(h_bCached, h_aCached, nElements, vuda::memcpyHostToHost, "cached to cached", verbose);
+    bwprofile[iter++] = profileTransfer(d_b, h_aCached, nElements, cudaMemcpyHostToDevice, "cached to local", verbose);
+    bwprofile[iter++] = profileTransfer(h_bPageable, h_aCached, nElements, cudaMemcpyHostToHost, "cached to pageable", verbose);
+    bwprofile[iter++] = profileTransfer(h_bPinned, h_aCached, nElements, cudaMemcpyHostToHost, "cached to pinned", verbose);
+    bwprofile[iter++] = profileTransfer(h_bCached, h_aCached, nElements, cudaMemcpyHostToHost, "cached to cached", verbose);
 
     //
     // print bandwidth resultss
     print_bwresults(memtype, bwprofile);
 
-    //
-    // classical bandwidthtest (timing using host)
-    title("Classical bandwidth test (timing using host)");
-    {
-        memset(h_bPageable, 0, bytes);
-        profileCopiesHost(h_aPageable, h_bPageable, d_a, d_b, nElements, "Host timing, Pageable");
-        memset(h_bPinned, 0, bytes);
-        profileCopiesHost(h_aPinned, h_bPinned, d_a, d_b, nElements, "Host timing, Pinned");
-    }
-
-    // timing using events
-    /*title("Classical bandwidth test (timing using events)");
-    {
-        memset(h_bPageable, 0, bytes);
-        profileCopies(h_aPageable, h_bPageable, d_a, nElements, "Event timing, Pageable");
-        //memset(h_bPinned, 0, bytes);
-        //profileCopies(h_aPinned, h_bPinned, d_a, d_b, nElements, "Event timing, Pinned");
-    }*/
-
     std::cout << std::endl;
 
     //
-    // cleanup    
+    // cleanup
     free(h_aPageable);
     free(h_bPageable);
-    vuda::freeHost(h_aPinned);
-    vuda::freeHost(h_bPinned);    
-    vuda::free(d_a);
-    vuda::free(d_b);
-    vuda::free(h_aCached);
-    vuda::free(h_bCached);
+    cudaFreeHost(h_aPinned);
+    cudaFreeHost(h_bPinned);
+    cudaFree(d_a);
+    cudaFree(d_b);
+    cudaFree(h_aCached);
+    cudaFree(h_bCached);
 }
 
 int main()
@@ -341,11 +250,13 @@ int main()
     {
         run();
     }
+#if !defined(__NVCC__)
     catch(vk::SystemError err)
     {
         std::cout << "vk::SystemError: " << err.what() << std::endl;
         return EXIT_FAILURE;
     }
+#endif
     catch(const std::exception& e)
     {
         std::cerr << "vuda::Error: " << e.what() << std::endl;
@@ -357,8 +268,9 @@ int main()
         return EXIT_FAILURE;
     }    
 
-    /*std::cout << "done" << std::endl;
-    std::cin.get();*/
-    //system("pause");
+#if !defined(NDEBUG)
+    std::cout << "done." << std::endl;
+    std::cin.get();
+#endif
     return 0;
 }

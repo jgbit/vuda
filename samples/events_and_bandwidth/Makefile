@@ -2,7 +2,7 @@ include ../config.mk
 
 EXECUTABLE=events_and_bandwidth
 SOURCES=$(EXECUTABLE).cpp
-CUDA_SRC=$(EXECUTABLE)_cuda.cu
+CUDA_SRC=$(EXECUTABLE).cpp
 
 $(EXECUTABLE): $(SOURCES)
 	$(CC) $(CFLAGS) $^ -o $@ $(INCLUDE) $(LDFLAGS)

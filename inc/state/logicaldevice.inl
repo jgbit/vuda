@@ -33,6 +33,7 @@ namespace vuda
             vk::PhysicalDeviceProperties deviceProperties;
             physDevice.getProperties(&deviceProperties);
             m_timestampPeriod = deviceProperties.limits.timestampPeriod;
+            m_nonCoherentAtomSize = deviceProperties.limits.nonCoherentAtomSize;
 
             //
             // create unique mutexes
@@ -213,21 +214,9 @@ namespace vuda
             push_mem_node(node);
 
             //
-            // touch device memory to commit allocation
-            // [ if we dont do this and dont allocate cached buffer afterwards, performance is killed
-            //   this seeems like a driver related issue ]
-            /*void* zero = (void*)std::malloc(size);
-            std::thread::id tid = std::this_thread::get_id();
-            memcpyToDevice(tid, node->mem_ptr(), zero, size, 0);
-            FlushQueue(tid, 0);
-            std::free(zero);*/
-
-            //
             // make sure we have a staging buffer of equal size
             // [ for now each device buffer is backed by equal sized buffers, this is not very economical to say the least ]
-            // [ for concurrent transfers we want to have sufficient pre-allocation, but we dont want to overcommit as the current implementation ]
-            //m_pinnedBuffers.create_buffer(size, m_allocator);
-            //m_cachedBuffers.create_buffer(size, m_allocator);
+            // [ for concurrent transfers we want to have sufficient pre-allocation, but we dont want to overcommit as the current implementation ]            
             host_pinned_node_internal* stage_ptr = m_pinnedBuffers.get_buffer(size, m_allocator);
             stage_ptr->set_free();
             host_cached_node_internal* dstptr = m_cachedBuffers.get_buffer(size, m_allocator);
@@ -238,7 +227,7 @@ namespace vuda
         {
             //
             // create new node in pinned host visible in storage_bst 
-            default_storage_node* node = new default_storage_node(vudaMemoryTypes::ePinned, size, m_allocator);
+            default_storage_node* node = new default_storage_node(vudaMemoryTypes::eCached, size, m_allocator);
 
             //
             // return the memory pointer
@@ -253,7 +242,7 @@ namespace vuda
         {
             //
             // create new node in cached, pinned, host visible mem
-            default_storage_node* node = new default_storage_node(vudaMemoryTypes::eCached, size, m_allocator);
+            default_storage_node* node = new default_storage_node(vudaMemoryTypes::ePinned, size, m_allocator);
 
             //
             // return the memory pointer
@@ -476,8 +465,7 @@ namespace vuda
             */
 
             assert(stream >= 0 && stream < m_queueComputeCount);
-
-            host_pinned_node_internal* stage_ptr = nullptr;
+            bool use_staged = false;
 
             //
             // all threads can read from the memory resources on the logical device
@@ -485,16 +473,13 @@ namespace vuda
                 std::shared_lock<std::shared_mutex> lckResources(*m_mtxResources);
 
                 const default_storage_node* dst_node = m_storage.search_range(m_storageBST_root, dst);
-                vk::Buffer dstbuf = dst_node->GetBuffer();
-                vk::DeviceSize dstOffset = dst_node->GetOffset();
-                vk::Buffer srcbuf;
-                vk::DeviceSize srcOffset;
+                assert(dst_node != nullptr);
 
                 //
                 // NOTE: src can be any ptr, we must check if the pointer is a known resource node or a pageable host allocation
-                const default_storage_node* src_node = m_storage.search_range(m_storageBST_root, const_cast<void*>(src));
-
-                if(src_node == nullptr || src_node->isHostVisible() == false)
+                internal_node* src_ptr = m_storage.search_range(m_storageBST_root, const_cast<void*>(src));
+                
+                if(src_ptr == nullptr)
                 {
                     // the src is not known, assume that we are copying from pageable host mem and copy to an internal staging buffer
 
@@ -506,25 +491,28 @@ namespace vuda
                     // request a pinned (internal) staging buffer
                     // copy the memory to a pinned staging buffer which is allocated with host visible memory (this is the infamous double copy)
                     // copy from stage buffer to device
-                    stage_ptr = m_pinnedBuffers.get_buffer(count, m_allocator);
-                    std::memcpy(stage_ptr->get_memptr(), src, count);
-                    srcbuf = stage_ptr->GetBuffer();
-                    srcOffset = stage_ptr->GetOffset();
+                    use_staged = true;
+                    src_ptr = m_pinnedBuffers.get_buffer(count, m_allocator);
+                    std::memcpy(src_ptr->get_memptr(), src, count);
 
                     /*std::ostringstream ostr;
                     ostr << "tid: " << std::this_thread::get_id() << ", using staged node: " << stage_ptr << std::endl;
                     std::cout << ostr.str();*/
                 }
-                else if(src_node->isHostVisible() == true)
-                {
-                    //
-                    // copy from known host visible buffer
-                    srcbuf = src_node->GetBuffer();
-                    srcOffset = src_node->GetOffset();
-                }
-                else
-                {
+                assert(src_ptr != nullptr);
+
+                if(src_ptr->IsHostVisible() == false)
                     throw std::runtime_error("vuda: the source must be a pointer to host visible memory!");
+
+                //
+                // if the source is non-coherent the CPU writes to the mapped buffer must be flushed before the GPU can read it
+                if(src_ptr->IsHostCoherent() == false)
+                {
+                    // size must either be a multiple of VkPhysicalDeviceLimits::nonCoherentAtomSize or offset plus size must equal the size of the memory.
+                    vk::DeviceSize count_noncoherentatomsize = ((count + m_nonCoherentAtomSize - 1) / m_nonCoherentAtomSize) * m_nonCoherentAtomSize;
+                    // NOTE: the size of the buffer should always be a multiple of the atom size - otherwise the memory allocator is doing something shady
+                    assert(count_noncoherentatomsize <= src_ptr->GetSize());
+                    m_device->flushMappedMemoryRanges(vk::MappedMemoryRange(src_ptr->GetMemory(), src_ptr->GetOffset(), count_noncoherentatomsize));
                 }
 
                 //
@@ -532,31 +520,35 @@ namespace vuda
 
                 //
                 // every thread can look up its command pool in the list
-                std::shared_lock<std::shared_mutex> lckCmdPools(*m_mtxCmdPools);
-                const thrdcmdpool *pool = &m_thrdCommandPools.at(tid);                
-
-                std::lock_guard<std::mutex> lckQueues(*m_mtxQueues[stream]);
-                vk::Queue q = m_queues.at(stream);
-
-                if(stage_ptr != nullptr)
                 {
-                    //                
-                    // 2. The function will return once the pageable buffer has been copied to the staging memory for DMA transfer to device memory, but the DMA to final destination may not have completed.
-                
-                    //
-                    // remember stage_ptr (protected by m_mtxQueues)                
-                    std::vector<std::thread::id>& ref = m_internal_pinned_buffers_in_use.at(stream)[stage_ptr];
-                    ref.push_back(tid);
+                    std::shared_lock<std::shared_mutex> lckCmdPools(*m_mtxCmdPools);
+                    const thrdcmdpool *pool = &m_thrdCommandPools.at(tid);
+                    std::lock_guard<std::mutex> lckQueues(*m_mtxQueues[stream]);
+                    vk::Queue q = m_queues.at(stream);
+
+                    if(use_staged == true)
+                    {
+                        //
+                        // 2. The function will return once the pageable buffer has been copied to the staging memory for DMA transfer to device memory, but the DMA to final destination may not have completed.
+
+                        //
+                        // remember stage_ptr (protected by m_mtxQueues)
+                        std::vector<std::thread::id>& ref = m_internal_pinned_buffers_in_use.at(stream)[src_ptr];
+                        ref.push_back(tid);
+                    }
+
+                    pool->memcpyDevice(m_device, dst_node->GetBuffer(), dst_node->GetOffset(), src_ptr->GetBuffer(), src_ptr->GetOffset(), count, q, stream);
+
+                    if(use_staged == true)
+                    {
+                        //
+                        // 3. For transfers from pinned host memory to device memory, the function is synchronous with respect to the host.
+                        //
+                        // internal flush queue
+                        flush_queue(tid, stream, pool, q);
+                    }
                 }
-
-                pool->memcpyDevice(m_device, dstbuf, dstOffset, srcbuf, srcOffset, count, q, stream);
             }
-
-            if(stage_ptr == nullptr)
-            {
-                // 3. For transfers from pinned host memory to device memory, the function is synchronous with respect to the host.
-                FlushQueue(tid, stream);
-            }        
         }
 
         inline void logical_device::memcpyDeviceToDevice(const std::thread::id tid, void* dst, const void* src, const size_t count, const stream_t stream) const
@@ -589,7 +581,7 @@ namespace vuda
                 //
                 // every thread can look up its command pool in the list
                 std::shared_lock<std::shared_mutex> lckCmdPools(*m_mtxCmdPools);
-                const thrdcmdpool *pool = &m_thrdCommandPools.at(tid);                
+                const thrdcmdpool *pool = &m_thrdCommandPools.at(tid);
 
                 std::lock_guard<std::mutex> lckQueues(*m_mtxQueues[stream]);
                 vk::Queue q = m_queues.at(stream);
@@ -611,9 +603,7 @@ namespace vuda
             // the logical device associated with the calling thread must be the same for all calling threads accessing src
 
             assert(stream >= 0 && stream < m_queueComputeCount);
-
-            host_cached_node_internal* dstptr = nullptr;
-            void *dst_memptr = nullptr;
+            bool use_staged = false;
 
             //
             // all threads can read from the memory resources on the logical device
@@ -623,62 +613,74 @@ namespace vuda
                 //
                 // internal copy in the node
                 const default_storage_node* src_node = m_storage.search_range(m_storageBST_root, const_cast<void*>(src));
-                vk::Buffer srcbuf = src_node->GetBuffer();
-                vk::DeviceSize srcOffset = src_node->GetOffset();
-                vk::Buffer dstbuf;
-                vk::DeviceSize dstOffset;
-                                    
-                const default_storage_node* dst_node = m_storage.search_range(m_storageBST_root, dst);
+                assert(src_node != nullptr);
 
-                if(dst_node == nullptr || dst_node->isHostVisible() == false)
+                //
+                // check if destination is known to vuda
+                internal_node* dst_ptr = m_storage.search_range(m_storageBST_root, dst);
+
+                if(dst_ptr == nullptr)
                 {
-                    // the dst adress is not known to vuda, assume that we are copying to pageable host mem
-                    // use staged buffer (pinned host cached memory) to perform internal copy before we copy to pageable host mem                
-                    dstptr = m_cachedBuffers.get_buffer(src_node->GetSize(), m_allocator);
-                    dstbuf = dstptr->GetBuffer();
-                    dstOffset = dstptr->GetOffset();
-                    dst_memptr = dstptr->get_memptr();
+                    // the dst address is not known to vuda, assume that we are copying to pageable host memory
+                    // use staged buffer (pinned host cached memory) to perform internal copy before we copy to pageable host memory
+                    use_staged = true;
+                    dst_ptr = m_cachedBuffers.get_buffer(src_node->GetSize(), m_allocator);
 
                     /*std::ostringstream ostr;
-                    ostr << "tid: " << std::this_thread::get_id() << ", using staged mem: " << dstptr->get_memptr() << std::endl;
+                    ostr << "tid: " << std::this_thread::get_id() << ", using staged mem: " << dst_ptr->get_memptr() << std::endl;
                     std::cout << ostr.str();*/
                 }
-                else if(dst_node->isHostVisible() == true)
-                {
-                    //
-                    // pinned memory target
-                    dstbuf = dst_node->GetBuffer();
-                    dstOffset = dst_node->GetOffset();
-                }
-                else
-                {
+                assert(dst_ptr != nullptr);
+
+                //
+                // make sure the memory is a host visible memory target
+                if(dst_ptr->IsHostVisible() == false)
                     throw std::runtime_error("vuda: the destination must be a pointer to host visible memory!");
-                }
+
+                assert(count <= dst_ptr->GetSize());
 
                 //
                 // every thread can look up its command pool in the list
-                std::shared_lock<std::shared_mutex> lckCmdPools(*m_mtxCmdPools);
-                const thrdcmdpool *pool = &m_thrdCommandPools.at(tid);                
+                {
+                    std::shared_lock<std::shared_mutex> lckCmdPools(*m_mtxCmdPools);
+                    const thrdcmdpool *pool = &m_thrdCommandPools.at(tid);
+                    std::lock_guard<std::mutex> lckQueues(*m_mtxQueues[stream]);
+                    vk::Queue q = m_queues.at(stream);
 
-                std::lock_guard<std::mutex> lckQueues(*m_mtxQueues[stream]);
-                vk::Queue q = m_queues.at(stream);
+                    pool->memcpyDevice(m_device, dst_ptr->GetBuffer(), dst_ptr->GetOffset(), src_node->GetBuffer(), src_node->GetOffset(), count, q, stream);
 
-                pool->memcpyDevice(m_device, dstbuf, dstOffset, srcbuf, srcOffset, count, q, stream);
-            }
-
-            //
-            // 4. For transfers from device to either pageable or pinned host memory, the function returns only once the copy has completed.
-            FlushQueue(tid, stream);
-
-            if(dstptr != nullptr)
-            {
-                //
-                // copy the memory back to the staging buffer (host visible memory)            
-                std::memcpy(dst, dst_memptr, count);
+                    //
+                    // 4. For transfers from device to either pageable or pinned host memory, the function returns only once the copy has completed.
+                    //
+                    // internal flush queue
+                    flush_queue(tid, stream, pool, q);
+                }
 
                 //
-                // release the internal cached node
-                dstptr->set_free();
+                // if the destination is non-coherent the the mapped buffer must be invalidated after GPU writes before CPU reads
+                if(dst_ptr->IsHostCoherent() == false)
+                {
+                    // size must either be a multiple of VkPhysicalDeviceLimits::nonCoherentAtomSize or offset plus size must equal the size of the memory.
+                    vk::DeviceSize count_noncoherentatomsize = ((count + m_nonCoherentAtomSize - 1) / m_nonCoherentAtomSize) * m_nonCoherentAtomSize;
+
+                    // NOTE: the size of the buffer should always be a multiple of the atom size - otherwise the memory allocator is doing something shady
+                    assert(count_noncoherentatomsize <= dst_ptr->GetSize());
+
+                    m_device->invalidateMappedMemoryRanges(vk::MappedMemoryRange(dst_ptr->GetMemory(), dst_ptr->GetOffset(), count_noncoherentatomsize));
+                }
+
+                //
+                // if we are using staging buffers
+                if(use_staged == true)
+                {
+                    //
+                    // copy the memory back to the staging buffer (host visible memory)
+                    std::memcpy(dst, dst_ptr->get_memptr(), count);
+
+                    //
+                    // release the internal cached node
+                    dst_ptr->set_free();
+                }
             }
         }
 
@@ -687,12 +689,48 @@ namespace vuda
             //
             // every thread can look up its command pool in the list
             std::shared_lock<std::shared_mutex> lckCmdPools(*m_mtxCmdPools);
-            const thrdcmdpool *pool = &m_thrdCommandPools.at(tid);            
+            const thrdcmdpool *pool = &m_thrdCommandPools.at(tid);
         
             //
             // control queue submissions on this level
             std::lock_guard<std::mutex> lckQueues(*m_mtxQueues[stream]);
             vk::Queue q = m_queues.at(stream);
+
+            //
+            // internal flush queue
+            flush_queue(tid, stream, pool, q);
+        }
+
+        inline void logical_device::FlushEvent(const std::thread::id tid, const event_t event)
+        {
+            //
+            // retrieve stream id associated with event
+            std::lock_guard<std::shared_mutex> lckEvents(*m_mtxEvents);
+            const stream_t stream = m_events.at(event).get_stream();
+
+            //
+            // every thread can look up its command pool in the list
+            std::shared_lock<std::shared_mutex> lckCmdPools(*m_mtxCmdPools);
+            const thrdcmdpool *pool = &m_thrdCommandPools.at(tid);
+
+            //
+            // control queue submissions on this level
+            std::lock_guard<std::mutex> lckQueues(*m_mtxQueues[stream]);
+            vk::Queue q = m_queues.at(stream);
+
+            //
+            // internal flush event
+            flush_event(stream, event, pool, q);
+        }
+
+        //
+        // private
+        //
+
+        inline void logical_device::flush_queue(const std::thread::id tid, const stream_t stream, const thrdcmdpool *pool, const vk::Queue q)
+        {
+            //
+            // assumes that pool and queue are locked (see FlushQueue).
 
             //
             // 
@@ -702,7 +740,7 @@ namespace vuda
             ostr.str("");*/
 
             //
-            // execute and wait for stream        
+            // execute and wait for stream
             pool->ExecuteAndWait(m_device, q, stream);
 
             //
@@ -722,13 +760,13 @@ namespace vuda
 
             // the order of the elements that are not erased is preserved (this makes it possible to erase individual elements while iterating through the container) (since C++14)
             auto it = ref.begin();
-            while(it != ref.end())        
+            while(it != ref.end())
             {
                 std::vector<std::thread::id>& using_threads = it->second;
 
                 // [tid](std::thread::id& cur) { return cur == tid; }
                 using_threads.erase(std::remove(using_threads.begin(), using_threads.end(), tid), using_threads.end());
-            
+
                 if(using_threads.size() == 0)
                 {
                     //
@@ -748,29 +786,17 @@ namespace vuda
                 else
                     ++it;
             }
-        
+
             //
             //
             /*ostr << "thrd: " << std::this_thread::get_id() << ", unlocked queue: " << stream << std::endl;
             std::cout << ostr.str();*/
         }
 
-        inline void logical_device::FlushEvent(const std::thread::id tid, const event_t event)
+        inline void logical_device::flush_event(const stream_t stream, const event_t event, const thrdcmdpool *pool, const vk::Queue q)
         {
             //
-            // retrieve stream id associated with event        
-            std::lock_guard<std::shared_mutex> lckEvents(*m_mtxEvents);
-            const stream_t stream = m_events.at(event).get_stream();
-
-            //
-            // control queue submissions on this level
-            std::lock_guard<std::mutex> lckQueues(*m_mtxQueues[stream]);
-            vk::Queue q = m_queues.at(stream);
-
-            //
-            // every thread can look up its command pool in the list
-            std::shared_lock<std::shared_mutex> lckCmdPools(*m_mtxCmdPools);
-            const thrdcmdpool *pool = &m_thrdCommandPools.at(tid);            
+            // assumes that event, pool and queue are locked (see FlushEvent).
 
             //
             // start executing stream if it has not been submitted already
@@ -788,7 +814,7 @@ namespace vuda
             //
             // record tick host side
             m_events.at(event).tick();
-        
+
             /*std::stringstream ostr;
             ostr << "vuda: event status attempt lock count: " << count << std::endl;
             std::cout << ostr.str();*/
@@ -797,10 +823,6 @@ namespace vuda
             // reset event
             m_device->resetEvent(event);
         }
-
-        //
-        // private
-        //
 
         inline void logical_device::push_mem_node(default_storage_node* node)
         {
@@ -879,7 +901,7 @@ namespace vuda
             {
                 //assert(program[0] == 0x03 && program[1] == 0x02 && program[2] == 0x23 && program[3] == 0x07); // "vuda: spir-v data is wrong, rebuild or check binaries"
                 //assert(kernelByteSize % 4 == 0);// "vuda: spir-v data is wrong, codesize must be a multiple of 4"
-                binary = reinterpret_cast<const uint32_t*>(identifier.c_str());                    
+                binary = reinterpret_cast<const uint32_t*>(identifier.c_str());
             /*#ifdef VUDA_DEBUG_ENABLED
                 m_debug_module_entries.try_emplace(identifier, entry);
             #endif*/
@@ -896,7 +918,7 @@ namespace vuda
 
             auto pair = m_modules.try_emplace(identifier_entry, m_device->createShaderModuleUnique(vk::ShaderModuleCreateInfo({}, bytesize, binary)));
             iter = pair.first;
-            return iter->second.get();            
+            return iter->second.get();
         }
 
         inline std::vector<char> logical_device::ReadShaderModuleFromFile(const std::string& filename) const
