@@ -85,7 +85,7 @@ namespace vuda
                 vk::DeviceQueueCreateInfo deviceQueueCreateInfo(vk::DeviceQueueCreateFlags(), computeQueueFamilyIndex, queueComputeCount, queuePriority.data());
 
             #ifdef VUDA_STD_LAYER_ENABLED
-                vk::DeviceCreateInfo info(vk::DeviceCreateFlags(), 1, &deviceQueueCreateInfo, 1, Instance::getValidationLayers().data(), 0, nullptr, nullptr);
+                vk::DeviceCreateInfo info(vk::DeviceCreateFlags(), 1, &deviceQueueCreateInfo, 1, Instance::vk_validationLayers.data(), 0, nullptr, nullptr);
             #else
                 vk::DeviceCreateInfo info(vk::DeviceCreateFlags(), 1, &deviceQueueCreateInfo);
             #endif

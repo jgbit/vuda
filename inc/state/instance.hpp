@@ -13,9 +13,9 @@ namespace vuda
 
             static vk::ApplicationInfo& getInstanceCreateInfo(void)
             {
-                static vk::ApplicationInfo info("VUDA", 1, "vuda.hpp", 1, VK_API_VERSION_1_1);
+                static vk::ApplicationInfo info("VUDA", 1, "vuda.hpp", 1, VK_API_VERSION_1_2);
                 return info;
-            }            
+            }
 
             static std::vector<vk::PhysicalDevice>& GetPhysicalDevices(void)
             {
@@ -33,11 +33,7 @@ namespace vuda
             }
 
     #else
-            static std::vector<const char*>& getExtensionList(void)
-            {
-                static std::vector<const char*> extensions = { VK_EXT_DEBUG_UTILS_EXTENSION_NAME };
-                return extensions;
-            }
+            static constexpr std::array<const char*, 1> vk_extensions = { VK_EXT_DEBUG_UTILS_EXTENSION_NAME };
 
             static vk::DispatchLoaderDynamic& getDispatchLoaderDynamic(const vk::UniqueInstance& instance)
             {
@@ -46,60 +42,33 @@ namespace vuda
                 return local_dldy;
             }
 
-            /*static vk::DispatchLoaderStatic& getDispatchLoaderStatic(void)
-            {
-                static vk::DispatchLoaderStatic local;
-                return local;
-            }*/
-
             static vk::UniqueInstance& get(void)
             {
                 //
-                // the initialization of the function local static variable is thread-safe.            
-                static vk::UniqueInstance local_instance = vk::createInstanceUnique(vk::InstanceCreateInfo({}, &getInstanceCreateInfo(), 1, getValidationLayers().data(), 1, getExtensionList().data()));
-
-                //
-                // check whether we can skip debug initialization
-                static std::atomic<bool> debug_initialized = false;
-                static std::atomic_flag debug_lock = ATOMIC_FLAG_INIT;
-
-                if(debug_lock.test_and_set(std::memory_order_acquire) == false)
-                {
-                    std::ostringstream ostr;
-                    ostr << std::this_thread::get_id() << " - validation layer enabled" << std::endl;
-                    std::cout << ostr.str();
-
-                    SetupDebugCallback(local_instance);
-                    debug_initialized.store(true);
-                }
-
-                // a simple spin lock make sure that debug layer has been initialized
-                while(debug_initialized.load() == false)
-                {
-                    std::this_thread::sleep_for(std::chrono::milliseconds(10));
-                }                    
-
+                // the initialization of the function local static variable is thread-safe.
+                static vk::UniqueInstance local_instance = vk::createInstanceUnique(vk::InstanceCreateInfo({}, &getInstanceCreateInfo(), 1, vk_validationLayers.data(), 1, vk_extensions.data()));
+                static std::once_flag debug_once;
+                std::call_once(debug_once, SetupDebugCallback, local_instance);
                 return local_instance;
             }
-        
-            /*void SetLayerFlags(const VkDebugUtilsMessageSeverityFlagsEXT messageSeverity, const VkDebugUtilsMessageTypeFlagsEXT messageType)
-            {
-                vk::debug::messageSeverity = messageSeverity;
-                vk::debug::messageType = messageType;
-            }*/
 
             static void SetupDebugCallback(const vk::UniqueInstance& instance)
             {
                 //
-                // default flags
-                //vk::DebugUtilsMessageSeverityFlagsEXT messageSeverity = vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose | vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning | vk::DebugUtilsMessageSeverityFlagBitsEXT::eError;
-                vk::DebugUtilsMessageSeverityFlagsEXT messageSeverity = vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning | vk::DebugUtilsMessageSeverityFlagBitsEXT::eError;
-                vk::DebugUtilsMessageTypeFlagsEXT messageType = vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral | vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation | vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance;
+                //
+                std::ostringstream ostr;
+                ostr << std::this_thread::get_id() << " - validation layer enabled" << std::endl;
+                std::cout << ostr.str();
 
                 //
-                // create info            
-                const vk::DebugUtilsMessengerCreateInfoEXT debugInfo({}, messageSeverity, messageType, debug::DebugCallbackFunction, nullptr);
+                // default flags
+                //vk::DebugUtilsMessageSeverityFlagsEXT messageSeverity = vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose | vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning | vk::DebugUtilsMessageSeverityFlagBitsEXT::eError;
+                const vk::DebugUtilsMessageSeverityFlagsEXT messageSeverity = vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning | vk::DebugUtilsMessageSeverityFlagBitsEXT::eError;
+                const vk::DebugUtilsMessageTypeFlagsEXT messageType = vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral | vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation | vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance;
 
+                //
+                // create info
+                const vk::DebugUtilsMessengerCreateInfoEXT debugInfo({}, messageSeverity, messageType, debug::DebugCallbackFunction, nullptr);
                 {
                     //static vk::UniqueDebugUtilsMessengerEXT local_debugMsg = instance.get().createDebugUtilsMessengerEXTUnique(debugInfo, nullptr, getDispatchLoaderDynamic(instance));
                     static auto local_debugMsg = instance.get().createDebugUtilsMessengerEXTUnique(debugInfo, nullptr, getDispatchLoaderDynamic(instance));
@@ -108,16 +77,13 @@ namespace vuda
 
         public:
 
-            static std::vector<const char*>& getValidationLayers(void)
-            {
-                #if defined(__APPLE__)
-                    static std::vector<const char*> validationLayers = { "VK_LAYER_KHRONOS_validation" };
-                #else
-                    static std::vector<const char*> validationLayers = { "VK_LAYER_LUNARG_standard_validation" };
-                #endif
-                return validationLayers;
-            }
-    #endif        
+            #if defined(__APPLE__)
+                static constexpr std::array<const char*, 1> vk_validationLayers = { "VK_LAYER_KHRONOS_validation" };
+            #else
+                static constexpr std::array<const char*, 1> vk_validationLayers = { "VK_LAYER_LUNARG_standard_validation" };
+            #endif
+
+    #endif
 
         public:
 

@@ -508,11 +508,17 @@ namespace vuda
                 // if the source is non-coherent the CPU writes to the mapped buffer must be flushed before the GPU can read it
                 if(src_ptr->IsHostCoherent() == false)
                 {
-                    // size must either be a multiple of VkPhysicalDeviceLimits::nonCoherentAtomSize or offset plus size must equal the size of the memory.
-                    vk::DeviceSize count_noncoherentatomsize = ((count + m_nonCoherentAtomSize - 1) / m_nonCoherentAtomSize) * m_nonCoherentAtomSize;
+                    // VkMappedMemoryRange
+                    // offset and size must specify a range contained within the currently mapped range of memory
+                    // offset must be a multiple of VkPhysicalDeviceLimits::nonCoherentAtomSize
+                    // size must either be a multiple of VkPhysicalDeviceLimits::nonCoherentAtomSize, or offset plus size must equal the size of memory
                     // NOTE: the size of the buffer should always be a multiple of the atom size - otherwise the memory allocator is doing something shady
-                    assert(count_noncoherentatomsize <= src_ptr->GetSize());
-                    m_device->flushMappedMemoryRanges(vk::MappedMemoryRange(src_ptr->GetMemory(), src_ptr->GetOffset(), count_noncoherentatomsize));
+
+                    vk::DeviceSize offset_noncoherentatomsize = (src_ptr->GetOffset() / m_nonCoherentAtomSize) * m_nonCoherentAtomSize;
+                    vk::DeviceSize count_noncoherentatomsize = ((count + m_nonCoherentAtomSize - 1) / m_nonCoherentAtomSize) * m_nonCoherentAtomSize;
+                    assert(offset_noncoherentatomsize % m_nonCoherentAtomSize == 0u);
+                    assert(count_noncoherentatomsize % m_nonCoherentAtomSize == 0u);
+                    m_device->flushMappedMemoryRanges(vk::MappedMemoryRange(src_ptr->GetMemory(), offset_noncoherentatomsize, count_noncoherentatomsize));
                 }
 
                 //
@@ -660,13 +666,17 @@ namespace vuda
                 // if the destination is non-coherent the the mapped buffer must be invalidated after GPU writes before CPU reads
                 if(dst_ptr->IsHostCoherent() == false)
                 {
-                    // size must either be a multiple of VkPhysicalDeviceLimits::nonCoherentAtomSize or offset plus size must equal the size of the memory.
-                    vk::DeviceSize count_noncoherentatomsize = ((count + m_nonCoherentAtomSize - 1) / m_nonCoherentAtomSize) * m_nonCoherentAtomSize;
-
+                    // VkMappedMemoryRange
+                    // offset and size must specify a range contained within the currently mapped range of memory
+                    // offset must be a multiple of VkPhysicalDeviceLimits::nonCoherentAtomSize
+                    // size must either be a multiple of VkPhysicalDeviceLimits::nonCoherentAtomSize, or offset plus size must equal the size of memory
                     // NOTE: the size of the buffer should always be a multiple of the atom size - otherwise the memory allocator is doing something shady
-                    assert(count_noncoherentatomsize <= dst_ptr->GetSize());
 
-                    m_device->invalidateMappedMemoryRanges(vk::MappedMemoryRange(dst_ptr->GetMemory(), dst_ptr->GetOffset(), count_noncoherentatomsize));
+                    vk::DeviceSize offset_noncoherentatomsize = (dst_ptr->GetOffset() / m_nonCoherentAtomSize) * m_nonCoherentAtomSize;
+                    vk::DeviceSize count_noncoherentatomsize = ((count + m_nonCoherentAtomSize - 1) / m_nonCoherentAtomSize) * m_nonCoherentAtomSize;
+                    assert(offset_noncoherentatomsize % m_nonCoherentAtomSize == 0u);
+                    assert(count_noncoherentatomsize % m_nonCoherentAtomSize == 0u);
+                    m_device->invalidateMappedMemoryRanges(vk::MappedMemoryRange(dst_ptr->GetMemory(), offset_noncoherentatomsize, count_noncoherentatomsize));
                 }
 
                 //
