@@ -73,7 +73,7 @@ namespace vuda
                 std::ostringstream ostr;
                 ostr << "vuda: virtual memory reservation failed with: " << GetLastErrorAsString().c_str() << std::endl;
                 throw std::runtime_error(ostr.str());
-            }                
+            }
 
             return lp;
         }
@@ -94,12 +94,12 @@ namespace vuda
 
 #elif(PLATFORM_NAME == VUDA_UNIX)
 
-        /*            
+        /*
             https://linux.die.net/man/2/mmap
             http://man7.org/linux/man-pages/man2/mmap.2.html
         */
         
-        inline std::string get_errno(void)
+        /*inline std::string get_errno(void)
         {
             const size_t buflen = 1024;
             char buf[buflen];
@@ -114,7 +114,7 @@ namespace vuda
                 snprintf(buf, buflen, "Unknown error %d", errno);
 
             return buf;
-        }
+        }*/
 
         inline void* VirtAlloc(size_t size, size_t& allocSize)
         {
@@ -131,9 +131,9 @@ namespace vuda
             if(ptr == NULL)
             {
                 std::ostringstream ostr;
-                ostr << "vuda: virtual memory reservation failed with: " << get_errno() << std::endl;
+                ostr << "vuda: virtual memory reservation failed" << /*"with: " << get_errno() <<*/ std::endl;
                 throw std::runtime_error(ostr.str());
-            }            
+            }
 
             return ptr;
         }
@@ -145,7 +145,7 @@ namespace vuda
             if(ret == -1)
             {
                 std::ostringstream ostr;
-                ostr << "vuda: failed to free virtual memory reservation at " << addr << " of length " << length << "with: " << get_errno() << std::endl;
+                ostr << "vuda: failed to free virtual memory reservation at " << addr << " of length " << length << /*"with: " << get_errno() <<*/ std::endl;
                 throw std::runtime_error(ostr.str());
             }
         }
