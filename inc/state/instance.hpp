@@ -77,11 +77,7 @@ namespace vuda
 
         public:
 
-            #if defined(__APPLE__)
-                static constexpr std::array<const char*, 1> vk_validationLayers = { "VK_LAYER_KHRONOS_validation" };
-            #else
-                static constexpr std::array<const char*, 1> vk_validationLayers = { "VK_LAYER_LUNARG_standard_validation" };
-            #endif
+            static constexpr std::array<const char*, 1> vk_validationLayers = { "VK_LAYER_KHRONOS_validation" };
 
     #endif
 

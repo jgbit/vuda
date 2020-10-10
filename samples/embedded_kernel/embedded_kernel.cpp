@@ -45,7 +45,7 @@ void launch_kernel(float* data)
 
     //
     // debugging the kernel
-#ifndef NDEBUG    
+#ifndef NDEBUG
     float *host = new float[N];
     vuda::memcpy(host, data, N * sizeof(float), vuda::memcpyDeviceToHost);
     for(uint32_t i = 0; i < 10; ++i)
@@ -96,7 +96,7 @@ int main()
     {
         launch();
     }
-    catch(vk::SystemError err)
+    catch(vk::SystemError& err)
     {
         std::cout << "vk::SystemError: " << err.what() << std::endl;
         return EXIT_FAILURE;

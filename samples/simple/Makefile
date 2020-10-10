@@ -6,6 +6,7 @@ CUDA_SRC=$(EXECUTABLE).cpp
 
 $(EXECUTABLE): $(SOURCES)
 	$(CC) $(CFLAGS) $^ -o $@ $(INCLUDE) $(LDFLAGS)
+	glslangValidator -V add.comp -o add.spv
 
 cuda: $(CUDA_SRC)
 	$(NVCC) $^ -x cu -o $(EXECUTABLE)_$@

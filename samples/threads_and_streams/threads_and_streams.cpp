@@ -1,13 +1,18 @@
 
-#ifndef _DEBUG 
-#define NDEBUG
-#endif
-#ifndef NDEBUG
+
+#if defined(__NVCC__)
+#include <cuda_runtime.h>
+#else
+#if !defined(NDEBUG)
 #define VUDA_STD_LAYER_ENABLED
 #define VUDA_DEBUG_ENABLED
 #endif
+#include <vuda_runtime.hpp>
+#endif
 
-#include <vuda.hpp>
+#include <thread>
+#include <iostream>
+#include <sstream>
 #include <random>
 #include "../tools/timer.hpp"
 
@@ -26,6 +31,45 @@ public:
     static void Launch(std::string name, const int num_threads, const unsigned int N, funcptr2 fptr);
 };
 
+#if defined(__NVCC__)
+
+__global__ void add(const int* dev_a, const int* dev_b, int* dev_c, const int N)
+{
+    int tid = threadIdx.x + blockIdx.x * blockDim.x;
+    while(tid < N)
+    {
+        dev_c[tid] = dev_a[tid] + dev_b[tid];
+        tid += blockDim.x * gridDim.x;
+    }
+}
+
+#endif
+
+void HandleException(std::string msg)
+{
+    try 
+    {
+        throw;
+    }
+#if !defined(__NVCC__)
+    catch(vk::SystemError& err)
+    {
+        std::cout << "vk::SystemError: " << err.what() << std::endl;
+        std::exit(EXIT_FAILURE);
+    }
+#endif
+    catch(const std::exception& e)
+    {
+        std::cerr << e.what() << std::endl;
+        std::exit(EXIT_FAILURE);
+    }
+    catch(...)
+    {
+        std::cout << "unknown error\n";
+        std::exit(EXIT_FAILURE);
+    }
+}
+
 int Test::SingleThreadSingleStreamExample(const int tid, const int nthreads, const unsigned int N, int* a, int* b, int* c)
 {
     try
@@ -33,9 +77,8 @@ int Test::SingleThreadSingleStreamExample(const int tid, const int nthreads, con
         //
         // settings
         const int deviceID = 0;
-        vuda::setDevice(deviceID);
+        cudaSetDevice(deviceID);
 
-        const int stream_id = 0;
         const int blocks = 128;
         const int threads = 128;
         const int bytesize = N * sizeof(int);
@@ -52,22 +95,27 @@ int Test::SingleThreadSingleStreamExample(const int tid, const int nthreads, con
 
         //
         // allocate memory on the device
-        vuda::malloc((void**)&dev_a, bytesize);
-        vuda::malloc((void**)&dev_b, bytesize);
-        vuda::malloc((void**)&dev_c, bytesize);
+        cudaMalloc((void**)&dev_a, bytesize);
+        cudaMalloc((void**)&dev_b, bytesize);
+        cudaMalloc((void**)&dev_c, bytesize);
 
         //
         // copy the arrays a and b to the device
-        vuda::memcpy(dev_a, a, bytesize, vuda::memcpyHostToDevice);
-        vuda::memcpy(dev_b, b, bytesize, vuda::memcpyHostToDevice);
+        cudaMemcpy(dev_a, a, bytesize, cudaMemcpyHostToDevice);
+        cudaMemcpy(dev_b, b, bytesize, cudaMemcpyHostToDevice);
 
         //
-        // run kernel                
+        // run kernel
+#if defined(__NVCC__)
+        add<<< blocks, threads >>>(dev_a, dev_b, dev_c, N);
+#else
+        const int stream_id = 0;
         vuda::launchKernel("add.spv", "main", stream_id, blocks, threads, dev_a, dev_b, dev_c, N);
+#endif
 
         //
         // copy result to host
-        vuda::memcpy(c, dev_c, bytesize, vuda::memcpyDeviceToHost);
+        cudaMemcpy(c, dev_c, bytesize, cudaMemcpyDeviceToHost);
 
         //
         // display results
@@ -78,24 +126,13 @@ int Test::SingleThreadSingleStreamExample(const int tid, const int nthreads, con
 
         //
         // free memory on device
-        vuda::free(dev_a);
-        vuda::free(dev_b);
-        vuda::free(dev_c);
-    }
-    catch(vk::SystemError err)
-    {
-        std::cout << "vk::SystemError: " << err.what() << std::endl;
-        return EXIT_FAILURE;
-    }
-    catch(const std::exception& e)
-    {
-        std::cerr << "vuda::Error: " << e.what() << std::endl;
-        return EXIT_FAILURE;
-    }
+        cudaFree(dev_a);
+        cudaFree(dev_b);
+        cudaFree(dev_c);
+    }    
     catch(...)
     {
-        std::cout << "unknown error\n";
-        return EXIT_FAILURE;
+        HandleException("SingleThreadSingleStreamExample");
     }
 
     return 0;
@@ -111,15 +148,11 @@ int Test::SingleThreadMultipleStreamsExample(const int tid, const int nthreads, 
         //
         // hardcore device 0
         const int deviceID = 0;
-        vuda::setDevice(deviceID);
+        cudaSetDevice(deviceID);
 
         //
         // kernel params
         const int nstreams = 2;
-        const int stream0_id = 0;
-        const int stream1_id = 1;
-        const int blocks = 128;
-        const int threads = 128;
 
 #ifdef THREAD_VERBOSE_OUTPUT
         std::ostringstream ostr;
@@ -137,37 +170,62 @@ int Test::SingleThreadMultipleStreamsExample(const int tid, const int nthreads, 
         int *dev_a1, *dev_b1, *dev_c1;
 
         //
-        // allocate memory on the device        
-        vuda::malloc((void**)&dev_a0, N * sizeof(int));
-        vuda::malloc((void**)&dev_b0, N * sizeof(int));
-        vuda::malloc((void**)&dev_c0, N * sizeof(int));
-        vuda::malloc((void**)&dev_a1, N * sizeof(int));
-        vuda::malloc((void**)&dev_b1, N * sizeof(int));
-        vuda::malloc((void**)&dev_c1, N * sizeof(int));
+        // create streams
+    #if defined(__NVCC__)
+        cudaStream_t stream0_id, stream1_id;
+        cudaStreamCreate(&stream0_id);
+        cudaStreamCreate(&stream1_id);
+    #else
+        // for now, vuda does not create streams, but operates with a maximum number of compute queues internally
+        const int stream0_id = 0;
+        const int stream1_id = 1;
+    #endif
+
+        //
+        // allocate memory on the device
+        cudaMalloc((void**)&dev_a0, N * sizeof(int));
+        cudaMalloc((void**)&dev_b0, N * sizeof(int));
+        cudaMalloc((void**)&dev_c0, N * sizeof(int));
+        cudaMalloc((void**)&dev_a1, N * sizeof(int));
+        cudaMalloc((void**)&dev_b1, N * sizeof(int));
+        cudaMalloc((void**)&dev_c1, N * sizeof(int));
 
         //
         // hardcode stream submission
-
         for(unsigned int i = 0; i < FULL_DATA_SIZE; i += nstreams * N)
         {
             //
             // copy the arrays a and b to the device
-            vuda::memcpy(dev_a0, a + i, N * sizeof(int), vuda::memcpyHostToDevice, stream0_id);
-            vuda::memcpy(dev_a1, a + i + N, N * sizeof(int), vuda::memcpyHostToDevice, stream1_id);
+            cudaMemcpyAsync(dev_a0, a + i, N * sizeof(int), cudaMemcpyHostToDevice, stream0_id);
+            cudaMemcpyAsync(dev_a1, a + i + N, N * sizeof(int), cudaMemcpyHostToDevice, stream1_id);
 
-            vuda::memcpy(dev_b0, b + i, N * sizeof(int), vuda::memcpyHostToDevice, stream0_id);
-            vuda::memcpy(dev_b1, b + i + N, N * sizeof(int), vuda::memcpyHostToDevice, stream1_id);
+            cudaMemcpyAsync(dev_b0, b + i, N * sizeof(int), cudaMemcpyHostToDevice, stream0_id);
+            cudaMemcpyAsync(dev_b1, b + i + N, N * sizeof(int), cudaMemcpyHostToDevice, stream1_id);
 
             //
-            // run kernel            
+            // run kernel
+            const int blocks = 128;
+            const int threads = 128;
+        #if defined(__NVCC__)
+            add<<< blocks, threads, 0, stream0_id >>> (dev_a0, dev_b0, dev_c0, N);
+            add<<< blocks, threads, 0, stream1_id >>> (dev_a1, dev_b1, dev_c1, N);
+        #else
             vuda::launchKernel("add.spv", "main", stream0_id, blocks, threads, dev_a0, dev_b0, dev_c0, N);
             vuda::launchKernel("add.spv", "main", stream1_id, blocks, threads, dev_a1, dev_b1, dev_c1, N);
+        #endif
 
             //
             // copy result to host
-            vuda::memcpy(c + i, dev_c0, N * sizeof(int), vuda::memcpyDeviceToHost, stream0_id);
-            vuda::memcpy(c + i + N, dev_c1, N * sizeof(int), vuda::memcpyDeviceToHost, stream1_id);
+            cudaMemcpyAsync(c + i, dev_c0, N * sizeof(int), cudaMemcpyDeviceToHost, stream0_id);
+            cudaMemcpyAsync(c + i + N, dev_c1, N * sizeof(int), cudaMemcpyDeviceToHost, stream1_id);
         }
+
+    #if defined(__NVCC__)
+        cudaStreamSynchronize(stream0_id);
+        cudaStreamSynchronize(stream1_id);
+        cudaStreamDestroy(stream0_id);
+        cudaStreamDestroy(stream1_id);
+    #endif
 
         //
         // display results
@@ -178,27 +236,16 @@ int Test::SingleThreadMultipleStreamsExample(const int tid, const int nthreads, 
 
         //
         // free memory on device
-        vuda::free(dev_a0);
-        vuda::free(dev_b0);
-        vuda::free(dev_c0);
-        vuda::free(dev_a1);
-        vuda::free(dev_b1);
-        vuda::free(dev_c1);
-    }
-    catch(vk::SystemError err)
-    {
-        std::cout << "vk::SystemError: " << err.what() << std::endl;
-        return EXIT_FAILURE;
-    }
-    catch(const std::exception& e)
-    {
-        std::cerr << e.what() << std::endl;
-        return EXIT_FAILURE;
+        cudaFree(dev_a0);
+        cudaFree(dev_b0);
+        cudaFree(dev_c0);
+        cudaFree(dev_a1);
+        cudaFree(dev_b1);
+        cudaFree(dev_c1);
     }
     catch(...)
     {
-        std::cout << "unknown error\n";
-        return EXIT_FAILURE;
+        HandleException("SingleThreadMultipleStreamsExample");
     }
 
     return 0;
@@ -211,13 +258,7 @@ int Test::MultipleThreadsMultipleStreamsExample(const int tid, const int nthread
         //
         // hardcode device 0
         const int deviceID = 0;
-        vuda::setDevice(deviceID);
-
-        //
-        // kernel params        
-        const int stream_id = tid;
-        const int blocks = 128;
-        const int threads = 128;
+        cudaSetDevice(deviceID);
 
 #ifdef THREAD_VERBOSE_OUTPUT
         std::ostringstream ostr;
@@ -239,46 +280,55 @@ int Test::MultipleThreadsMultipleStreamsExample(const int tid, const int nthread
         //
         // allocate memory on the device
         const int bytesize = N * sizeof(int);
-        vuda::malloc((void**)&dev_a, bytesize);
-        vuda::malloc((void**)&dev_b, bytesize);
-        vuda::malloc((void**)&dev_c, bytesize);
+        cudaMalloc((void**)&dev_a, bytesize);
+        cudaMalloc((void**)&dev_b, bytesize);
+        cudaMalloc((void**)&dev_c, bytesize);
+
+        //
+        // create streams
+    #if defined(__NVCC__)
+        cudaStream_t stream_id;
+        cudaStreamCreate(&stream_id);
+    #else
+        // for now, vuda does not create streams, but operates with a maximum number of compute queues internally
+        const int stream_id = tid;
+    #endif
+
+        //
+        // kernel params
+        const int blocks = 128;
+        const int threads = 128;
 
         // copy the arrays a and b to the device
-        vuda::memcpy(dev_a, a + tid * N, bytesize, vuda::memcpyHostToDevice, stream_id);
-        vuda::memcpy(dev_b, b + tid * N, bytesize, vuda::memcpyHostToDevice, stream_id);
-        
-        //
-        // run kernel
-        vuda::launchKernel("add.spv", "main", stream_id, blocks, threads, dev_a, dev_b, dev_c, N);
+        cudaMemcpyAsync(dev_a, a + tid * N, bytesize, cudaMemcpyHostToDevice, stream_id);
+        cudaMemcpyAsync(dev_b, b + tid * N, bytesize, cudaMemcpyHostToDevice, stream_id);
 
         //
-        // [until we have async memcpy, we must sync the device between threads ]
-        //vuda::streamSynchronize(stream_id);
+        // run kernel
+        #if defined(__NVCC__)
+            add <<< blocks, threads, 0, stream_id >>> (dev_a, dev_b, dev_c, N);
+        #else
+            vuda::launchKernel("add.spv", "main", stream_id, blocks, threads, dev_a, dev_b, dev_c, N);
+        #endif
 
         //
         // copy result to host
-        vuda::memcpy(c + tid * N, dev_c, bytesize, vuda::memcpyDeviceToHost, stream_id);
+        cudaMemcpyAsync(c + tid * N, dev_c, bytesize, cudaMemcpyDeviceToHost, stream_id);
+
+    #if defined(__NVCC__)
+        cudaStreamSynchronize(stream_id);
+        cudaStreamDestroy(stream_id);
+    #endif
 
         //
         // free memory on device
-        vuda::free(dev_a);
-        vuda::free(dev_b);
-        vuda::free(dev_c);
-    }
-    catch(vk::SystemError err)
-    {
-        std::cout << "vk::SystemError: " << err.what() << std::endl;
-        return EXIT_FAILURE;
-    }
-    catch(const std::exception& e)
-    {
-        std::cerr << e.what() << std::endl;
-        return EXIT_FAILURE;
+        cudaFree(dev_a);
+        cudaFree(dev_b);
+        cudaFree(dev_c);
     }
     catch(...)
     {
-        std::cout << "unknown error\n";
-        return EXIT_FAILURE;
+        HandleException("MultipleThreadsMultipleStreamsExample");
     }
 
     return 0;
@@ -325,7 +375,7 @@ void Test::Launch(std::string name, const int num_threads, const unsigned int N,
     std::cout << "done." << std::endl << std::endl;
 
     //
-    // threads    
+    // threads
     Timer timer;
     std::thread* t = new std::thread[num_threads];
     const int totalRuns = 12;
@@ -337,10 +387,10 @@ void Test::Launch(std::string name, const int num_threads, const unsigned int N,
     // 
     // warm up, pre-create the logical devices
     int deviceCount;
-    vuda::getDeviceCount(&deviceCount);
+    cudaGetDeviceCount(&deviceCount);
     for(int deviceID = 0; deviceID < deviceCount; ++deviceID)
-        vuda::setDevice(deviceID);
-    vuda::setDevice(0);
+        cudaSetDevice(deviceID);
+    cudaSetDevice(0);
 
     totalElapsedTime = 0.0;
     for(int run = 0; run < totalRuns; ++run)
@@ -379,52 +429,61 @@ void Test::Launch(std::string name, const int num_threads, const unsigned int N,
 
 int main(int argc, char *argv[])
 {
-    //
-    // arguments
-    std::vector<const char*> args;
-    for(size_t i = 0; i < (size_t)argc; i++)
-        args.push_back(argv[i]);
+    try
+        {
+        //
+        // arguments
+        std::vector<const char*> args;
+        for(size_t i = 0; i < (size_t)argc; i++)
+            args.push_back(argv[i]);
 
-    //
-    // default parameters
-    // {problem size, run all tests }
+        //
+        // default parameters
+        // {problem size, run all tests }
 
-    unsigned int N = 1000000;
-    //unsigned int test = 0;
-    std::vector<bool> test_runs(3, true);
-    /*if(HandleArguments(N, test) == EXIT_SUCCESS)
-        return EXIT_SUCCESS;*/
+        unsigned int N = 1000000;
+        //unsigned int test = 0;
+        std::vector<bool> test_runs(3, true);
+        /*if(HandleArguments(N, test) == EXIT_SUCCESS)
+            return EXIT_SUCCESS;*/
 
-    //
-    // Examples
+        //
+        // Examples
 
-    std::vector<std::string> test_names = {
-    "Single device, single thread, single stream",
-    "Single device, single thread, multiple streams",
-    //"Single device, multiple threads, single stream",
-    "Single device, multiple threads, multiple streams"
-    };
+        std::vector<std::string> test_names = {
+        "Single device, single thread, single stream",
+        "Single device, single thread, multiple streams",
+        //"Single device, multiple threads, single stream",
+        "Single device, multiple threads, multiple streams"
+        };
 
-    int testid;
-    //
-    // single device, single thread, single stream
-    testid = 0;
-    if(test_runs[testid])
-        Test::Launch(test_names[testid], 1, N, &Test::SingleThreadSingleStreamExample);
-    
-    //
-    // single device, single thread, multiple streams
-    testid = 1;
-    if(test_runs[testid])
-        Test::Launch(test_names[testid], 1, N, &Test::SingleThreadMultipleStreamsExample);
-    
-    //
-    // single device, multiple threads, multiple streams
-    testid = 2;
-    if(test_runs[testid])
-        Test::Launch(test_names[testid], 8, N, &Test::MultipleThreadsMultipleStreamsExample);
-    
-#ifndef NDEBUG    
+        int testid;
+
+        //
+        // single device, single thread, single stream
+        testid = 0;
+        if(test_runs[testid])
+            Test::Launch(test_names[testid], 1, N, &Test::SingleThreadSingleStreamExample);
+
+        //
+        // single device, single thread, multiple streams
+        testid = 1;
+        if(test_runs[testid])
+            Test::Launch(test_names[testid], 1, N, &Test::SingleThreadMultipleStreamsExample);
+
+        //
+        // single device, multiple threads, multiple streams
+        testid = 2;
+        if(test_runs[testid])
+            Test::Launch(test_names[testid], 8, N, &Test::MultipleThreadsMultipleStreamsExample);
+
+    }
+    catch(...)
+    {
+        HandleException("main");
+    }
+
+#ifndef NDEBUG
     std::cout << "done." << std::endl;
     std::cin.get();
 #endif

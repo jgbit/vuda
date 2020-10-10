@@ -282,6 +282,13 @@ inline cudaError_t cudaMemcpy(void* dst, const void* src, size_t count, cudaMemc
 }
 
 //
+// Copies data between host and device.
+inline cudaError_t cudaMemcpyAsync(void* dst, const void* src, size_t count, cudaMemcpyKind kind, cudaStream_t stream = 0)
+{
+    return vuda::memcpy(dst, src, count, kind, stream);
+}
+
+//
 // Initializes or sets device memory to a value.
 /*inline cudaError_t cudaMemset(void* devPtr, int  value, size_t count)
 {

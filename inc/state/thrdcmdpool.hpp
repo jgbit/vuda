@@ -110,8 +110,9 @@ namespace vuda
             
                 //
                 // vkGetQueryPoolResults will wait for the results to be available when VK_QUERY_RESULT_WAIT_BIT is specified
-                //vk::Result res = 
+                vk::Result res =
                 device->getQueryPoolResults(m_queryPool.get(), queryID, numQueries, size, &result[0], stride, vk::QueryResultFlagBits::e64 | vk::QueryResultFlagBits::eWait);
+                assert(res == vk::Result::eSuccess);
 
                 return result[0];
             }
@@ -164,7 +165,7 @@ namespace vuda
                 std::cout << ostr.str();*/
 
                 //
-                // insert pipeline barrier?            
+                // insert pipeline barrier?
 
                 /*vk::BufferMemoryBarrier bmb(vk::AccessFlagBits::eTransferRead, vk::AccessFlagBits::eTransferWrite, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, bufferDst, dstOffset, size);
 
@@ -181,7 +182,7 @@ namespace vuda
                 ExecuteQueue(device, queue, stream);
 
                 //ostr << "thrd: " << std::this_thread::get_id() << ", pooladrr: " << this << ", unlocking command buffer: " << stream << std::endl;
-                //std::cout << ostr.str();            
+                //std::cout << ostr.str();
             }
 
             template <size_t specializationByteSize, typename... specialTypes, size_t bindingSize>
@@ -361,8 +362,9 @@ namespace vuda
                 if(m_commandBufferState[stream] == cbSubmitted)
                 {
                     //
-                    // for now just wait for the queue to become idle        
-                    device->waitForFences(1, &m_ufences[stream].get(), VK_FALSE, (std::numeric_limits<uint64_t>::max)());
+                    // for now just wait for the queue to become idle
+                    vk::Result res = device->waitForFences(1, &m_ufences[stream].get(), VK_FALSE, (std::numeric_limits<uint64_t>::max)());
+                    assert(res == vk::Result::eSuccess);
                     device->resetFences(1, &m_ufences[stream].get());
 
                     //

@@ -99,7 +99,7 @@ int main()
         query_device();
     }
 #if !defined(__NVCC__)
-    catch(vk::SystemError err)
+    catch(vk::SystemError& err)
     {
         std::cout << "vk::SystemError: " << err.what() << std::endl;
         return EXIT_FAILURE;

@@ -30,7 +30,7 @@ int blocks_and_threads(const std::thread::id tid)
     int *dev_c;
 
     std::random_device rd;
-    std::mt19937 mt(rd());        
+    std::mt19937 mt(rd());
     std::uniform_int_distribution<uint32_t> dist(1, 100);
 
     //
@@ -101,7 +101,7 @@ int main()
         // call kernel from different host threads with different number of kernel threads
         // ...
     }
-    catch(vk::SystemError err)
+    catch(vk::SystemError& err)
     {
         std::cout << "vk::SystemError: " << err.what() << std::endl;
         return EXIT_FAILURE;
@@ -120,7 +120,7 @@ int main()
     /*std::cout << "done" << std::endl;
     std::cin.get();*/
 
-#ifndef NDEBUG    
+#ifndef NDEBUG
     std::cout << "done." << std::endl;
     std::cin.get();
 #endif

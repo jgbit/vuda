@@ -86,7 +86,7 @@ namespace vuda
             {
                 m_info = vk::SpecializationInfo
                 {
-                    static_cast<uint32_t>(m_count),            
+                    static_cast<uint32_t>(m_count),
                     m_entries.data(),
                     static_cast<vk::DeviceSize>(m_bytesize),
                     reinterpret_cast<void*>(m_data.data())
@@ -105,7 +105,6 @@ namespace vuda
 
             //
             // empty constructor
-
             specialization()
             {
                 fill_entries<0>();
@@ -116,7 +115,6 @@ namespace vuda
 
             //
             // copy constructor and assignment operator
-
             specialization(const specialization& other) : m_entries{ other.m_entries }, m_data{ other.m_data }
             {
                 create_info();
@@ -125,13 +123,12 @@ namespace vuda
             specialization& operator=(const specialization& other)
             {
                 if(this != &other)
-                    m_data = other.m_data;        
+                    m_data = other.m_data;
                 return *this;
             }
 
             //
             // move constructor and assignment operator
-
             specialization(specialization&& other) : m_entries{ std::move(other.m_entries) }, m_data{ std::move(other.m_data) }
             {
                 create_info();
@@ -145,7 +142,7 @@ namespace vuda
             }
 
             //
-            // get specializationization info struct        
+            // get specializationization info struct
             const vk::SpecializationInfo& info(void) const
             {
                 return m_info;

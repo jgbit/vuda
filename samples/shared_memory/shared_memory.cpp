@@ -48,7 +48,7 @@ int main(int argc, char *argv[])
         // clean up
         vuda::free(d_d);
     }
-    catch(vk::SystemError err)
+    catch(vk::SystemError& err)
     {
         std::cout << "vk::SystemError: " << err.what() << std::endl;
         return EXIT_FAILURE;

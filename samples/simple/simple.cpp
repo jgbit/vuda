@@ -14,7 +14,7 @@
 
 __global__ void add(const int* dev_a, const int* dev_b, int* dev_c, const int N)
 {
-    int tid = threadIdx.x + blockIdx.x * blockDim.x;    
+    int tid = threadIdx.x + blockIdx.x * blockDim.x;
     while(tid < N)
     {
         dev_c[tid] = dev_a[tid] + dev_b[tid];
@@ -57,7 +57,7 @@ int main(void)
     // copy result to host
     cudaMemcpy(c, dev_c, N * sizeof(int), cudaMemcpyDeviceToHost);
 
-    // do something useful with the result in array c ...    
+    // do something useful with the result in array c ...
     for(int i = 0; i < N; ++i)
         if(a[i] + b[i] != c[i])
         {
