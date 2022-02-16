@@ -99,7 +99,7 @@ namespace vuda
                     .setUsage(vk::BufferUsageFlags(bufferUsageFlags::eDefault))
                     .setSharingMode(vk::SharingMode::eExclusive);
                 vk::Buffer buffer = device.createBuffer(info);
-                const VkMemoryRequirements memreq = device.getBufferMemoryRequirements(buffer);
+                const vk::MemoryRequirements memreq = device.getBufferMemoryRequirements(buffer);
                 device.destroyBuffer(buffer);
 
                 for(const vk::MemoryPropertyFlags& type : candidates)
