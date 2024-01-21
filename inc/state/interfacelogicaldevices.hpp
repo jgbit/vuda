@@ -28,7 +28,7 @@ namespace vuda
                     
                 //
                 // create a logical device if it is not already in existence
-                return create_logical_device(physDevice, device);                
+                return create_logical_device(physDevice, device);
             }
 
         private:
@@ -83,12 +83,7 @@ namespace vuda
                 const uint32_t queueComputeCount = queueCount;
                 const std::vector<float> queuePriority(queueComputeCount, 0.0f);
                 vk::DeviceQueueCreateInfo deviceQueueCreateInfo(vk::DeviceQueueCreateFlags(), computeQueueFamilyIndex, queueComputeCount, queuePriority.data());
-
-            #ifdef VUDA_STD_LAYER_ENABLED
-                vk::DeviceCreateInfo info(vk::DeviceCreateFlags(), 1, &deviceQueueCreateInfo, 1, Instance::vk_validationLayers.data(), 0, nullptr, nullptr);
-            #else
-                vk::DeviceCreateInfo info(vk::DeviceCreateFlags(), 1, &deviceQueueCreateInfo);
-            #endif
+                vk::DeviceCreateInfo info(vk::DeviceCreateFlags(), 1, &deviceQueueCreateInfo, (uint32_t)Instance::vk_layernames.size(), Instance::vk_layernames.data(), 0, nullptr, nullptr);
 
                 //get().insert({ device, logical_device(info, physDevice) });
                 //auto pair = get().emplace(std::piecewise_construct, std::forward_as_tuple(device), std::forward_as_tuple(info, physDevice));
